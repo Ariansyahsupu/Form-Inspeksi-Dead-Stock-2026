@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisa FF Class - Corporate Edition</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- SheetJS for Excel Processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            200: '#bcccdc',
+                            300: '#9fb3c8',
+                            400: '#829ab1',
+                            500: '#627d98',
+                            600: '#486581',
+                            700: '#334e68',
+                            800: '#243b53',
+                            900: '#102a43', // Deep Navy
+                        },
+                        orange: {
+                            500: '#f97316', // Bright Orange
+                            600: '#ea580c', // Darker Orange
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar for table */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased selection:bg-orange-100 selection:text-orange-900">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS ---
+        const IconFileSpreadsheet = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+        );
+        const IconFileText = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+        );
+        const IconFilter = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        );
+        const IconLayers = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+        );
+        const IconCheckCircle = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        );
+        const IconAlertCircle = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        );
+        const IconRefreshCw = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        );
+        const IconDownload = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        );
+        const IconLoader2 = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        );
+        const IconArrowRight = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        );
+
+        // --- MAIN APP COMPONENT ---
+        function App() {
+            const [usageFiles, setUsageFiles] = useState([]); 
+            const [assetFile, setAssetFile] = useState(null); 
+            
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [progressMsg, setProgressMsg] = useState('');
+            const [results, setResults] = useState([]);
+            const [error, setError] = useState('');
+            const [step, setStep] = useState(1);
+
+            // DAFTAR BRAND VALID (WHITELIST)
+            const ALLOWED_BRANDS = new Set([
+                "KOMATSU", 
+                "EON", "HINO", "BRIDGESTONE", "VOLVO", "GLOMINPRO", "LGMG", "SHANTUI", "MERCEDES BENZ", "ITR", "SHELL", "SDLG", "CASTROL", 
+                "HITACHI", "CATERPILLAR", "WEICHAI", "HOSINDO", "MITSUBISHI", "XCMG", "DENSO", "CUMMINS", "NR", "RYCO", "PARKER", "TOYOTA", 
+                "DONGFENG", "BEIBEN", "DT", "KSS", "HDP", "ISUZU", "MANULI", "DOOSAN", "ZF", "OEM", "TIMKEN", "GRACO", "INDOSPRING", 
+                "PERTAMINA", "KOREA", "PERKINS", "EURORICAMBI", "FLEETGUARD", "ADVANCE", "DONALDSON", "HYDAC", "SANDVIK", "FEURST", 
+                "KUBOTA", "BJORK", "KOYO", "WINNER", "TIANLIE", "KOMAN", "GOODYEAR", "GAMA", "TOTAL", "PVC", "PACIFIC PAINT", "QUICKLUBE", 
+                "SUMITOMORIKO", "JASO", "DANA PAINT", "TIP TOP", "SUPER GLOSS", "REXITE", "SUPREME", "ALASKA", "KISWEL", "DANAGLOSS", 
+                "HEATSHRINK", "MOLY", "HATAKE", "IVORY", "ORCA", "PRIMA", "HARDENER", "VERO", "CEMENT", "HAMMERTONE", "JOTUN", "VECTOR", 
+                "MOTOROLA", "TOMBO", "CHEETAH", "TENGOO", "BOSCH", "M3", "PINGUIN", "DANABRITE", "YAMATO", "TAPE", "EUTECH", "BRONZE", 
+                "PANASONIC", "DECOPLUS", "AVIAN", "DULUX", "HARMONIKA", "MORIS", "OTANI", "SW", "CHW", "KANSAI", "KRISBOW", "ETERNA", 
+                "VOGEL", "CNP", "AIRMAN", "KINGS", "AVITEX", "HARDOX", "HARDOCK", "ALKAN", "NCR", "CIGWELD", "BESTPATCH", "REMAN", 
+                "SYNTHETIC", "SINOTRUK", "TIPTOP", "THM", "HALTEC", "FENDER", "HITTEN", "DANAGLOS", "SANWADENKI", "ZINCHROMATE", "ROLL", 
+                "HOFZ", "DITON", "HARRIS", "DEX", "FERRULE", "TWISTED", "BENZ", "BOMAG", "SHEEL", "T&H", "FLUID-PRESTONE", "BETA", 
+                "PARAGON", "ZENTRUM", "MATSUSAKI", "VITON", "DANALAC", "KALSIBOARD", "KOBELCO", "AMERCOAT", "MEIJI", "KISWIRE", "NETLINE", 
+                "ALPINE", "WIPRO", "WANDA", "FLEX", "MANNAREX", "AKZONOBEL", "CLARK", "ZEAHO", "SIKKENS", "GALAXY", "UNIVERSAL", "HAITEN", 
+                "FUSO", "BEAM", "BRASS", "MILAMIN", "DNY", "POLIBEST", "BERDURI", "SUPERSUNFLEX", "STATIK", "ADDITIVE", "SUPPRESSION", 
+                "BLIND", "LED", "TKN", "HARTEX", "CORE", "KYB", "SKF", "CNMG", "IPS", "MULTIFLO", "ADVANTAGE", "HYUNDAI", "FATOOLS", "KS", 
+                "ANFO", "HYD", "KIRO", "TOGAWA", "STELL", "HEWEIYY", "JAPAN", "SETRA", "YOKOHAMA", "FOX", "ASSEI", "OUTLEADER", "SUPERIOR", 
+                "GOSAVE", "GLOVES", "NYTAMOR", "SUPER", "YUKI", "NICHIRO", "COOLANT", "REPSOL", "LOCTITE", "SUMITOMO", "RIKO", "GLUE", 
+                "BLINKEN", "HYVA", "JUMBO", "INP", "DANAPAINT", "FLOMAX", "FLAG", "FASSI", "SHOVEL", "GTI", "TTHOMSON", "REXCO", "BILIANT", 
+                "KNORR-BREMSE", "RAJAWALI", "COPCO", "ALLMAKES", "TAYOR", "BIRKENS", "UGREEN", "DAIHEN", "3M", "LANDUN", "AXIO", "RIMEX", 
+                "KJH", "WABCO", "GTE", "ATG", "DELTALUBE", "KUNLUN", "WAXCO", "VISCOCITY", "ULTRALINE", "KAESER", "POWER", "DELVAC", 
+                "BERCH", "YK-FLEX", "TOPCON", "TESTER", "GRIESHEIM", "TOWING", "MESH", "DENYO", "SPLN", "SUPERGLOSS", "BELLANOVA", 
+                "SHENZEN", "WASHI", "ANTECH", "SUNFLEX", "USA", "JACKGEN", "DOLKEN", "UNO", "CAT", "NOK", "MEZ", "P&G", "SAKAI", "HDS", 
+                "BANDO", "CHINA", "VERONA", "NTN", "BERCO", "CAMMOZI", "OME", "KBW", "SUPERPRO", "PANTHER", "JPN", "AGE", "FLUIDCON", 
+                "WSP", "NIKEN", "NICHIE", "HILUX", "AIRHORSE", "ARCAIR", "HARMONICA", "MTG", "ICHIRO", "MUTIITOYO", "HAWA", "SCANIA", 
+                "JASMIN", "STAPLER", "SIKEN", "KYORITSU", "STARLINK", "HYDRAMAN", "MAKITA", "CURTIS", "SHEL", "CAESAR", "KAESAR", 
+                "SEIKEN", "DFFILTRI", "MILLENIUM", "COCREA", "KANATI", "JIMCO", "NSA", "SAM", "SANDFLEX", "NESCO", "KING", "CROSS", 
+                "DORFREE", "NANKAI", "ZM", "SIGMA", "DANFOSS", "WB", "BMT", "BULLS", "TYCO", "SILICA", "HAYCARB", "ASANO", "ELP", 
+                "AMP", "SACHS", "PATCH", "HYDROLEDUC", "UBIQUITI", "ASUS", "SMARTGEN", "SPECIA", "YUKEN", "FHAS", "LINCOLN", "METRIC", 
+                "MASSIVE", "YUNG", "LIUGONG", "IMA", "LOVOL", "ELRING", "HANDSTAR", "KWK", "3D", "INA", "Q-LOK", "MASKO", "WILSON", 
+                "ARCHITECH", "EL-FLUIDCA", "TRIANGLE", "DONY", "DYNABOLT", "WIPRO", "YUASA", "JASON", "MST", "DSI", "WR", "JP", "MOTEX", 
+                "ERLING", "OFM", "EXOL", "MDS", "TOZEN", "STR", "FAG", "FENAFLEX", "PILOT", "ZETALUBE", "MAXAM", "MARTIN", "SANY", 
+                "DELCO", "BARTEX", "BRUSHES", "PRESTONE", "NACHI", "HARNESS", "OPK", "XHQ", "BTR", "GENIUS", "STANLEY", "MANILA", 
+                "DOTCO", "UNICON", "MERCY", "UNITED", "SANPOLY", "AKRILIK", "DAYTONA", "KENWOOD", "PHILIPS", "VHB", "ONDA", "VISINE", 
+                "SPAMACINE", "GRATIZINE", "EVERSAME", "TOYOTA", "POE", "ARDUINO", "MG", "NITTO", "LMT", "CATTERPILAR", "PENTOSIN", "GTR", 
+                "GERMANY", "LENOVO", "WAQNDA", "JUNYUE", "SAMSUNG", "JEANS", "CIRCULAR", "ZENER", "LATTEPANDA", "GATS", "SHIGEMITSU", 
+                "MAZAKI", "ENSHU", "ACER", "WIINER", "MITUTOYO", "TMS", "MSI", "DOSEMENLER", "DRAGON", "SWI", "VITATOOLS", "GRC", 
+                "ZINCALUME", "PETROL", "TOKI", "BEHR", "GATE", "PHOENIX", "PUMA", "VALEO", "CORTECO", "IBK", "NG", "FAN", "SAF", 
+                "CHANEL", "SNNXYE", "SHARP", "UTP", "TRC", "HI-CON", "ENCO", "UNS", "NATIONAL", "HOSHI", "JREADY", "HANDOK", "FH", 
+                "QOP", "SWR", "XIRALLIC", "VARIO", "UENO", "MARLON", "NESTLE", "KI-DAI", "BALENO", "NAYABANA", "LEICA", "TKB", 
+                "YUZAKA", "DONFOSS", "SHIMADZU", "HENG", "TOKISAN", "REFLON", "NGS", "HELKER", "CARLISE", "MITSUBIAHI", "TRANSFLEX", 
+                "JEEGEN", "IZUSU", "MITSUWA", "TZUYAOKU", "OTOPARTS", "JAAQEN", "YEC", "HFC", "SEMPERIT", "JIAMPART", "WABIECO", 
+                "ROCKY", "PROKINS", "PREFILTER", "CONTIMAX", "SHACK", "VERONE", "DHP", "GETLF", "JIDECO", "CIEGWIELD", "SHIHLIN", 
+                "HUANGYAN", "JANSTA", "VIVOBOOK", "SUPERGLOS", "UNICOIN", "MEC", "BCK", "MAT29", "YAMAMOTO", "YAMAKO", "MICRON+", 
+                "OFTIMA", "SIHIL", "HONGXIANG", "SANDIKO", "HART", "BONTYRE", "LEEMIN", "CHITOSE", "PROTEX", "HASANS", "QUEST", 
+                "MARUI", "V-TEC", "NEXON", "CLINO", "DENPOO", "ISINA", "SONGRUI", "WRP", "PICCOLO", "NEBU", "SYLVANIA", "SAMHO", 
+                "PANDA", "V-TECH", "VERTEX", "CUBEBATT", "TITANIUM", "SNEIDER", "BTECH", "CHAINWAY", "WELDBRO", "MAXPOWER", "VEEMET", 
+                "MOLYKOTE", "ALTECO", "CONTINENTAL", "DAICO", "HERTEX", "SENSI", "BOWEX", "REFONE", "CHIATEH", "SANYI", "YANHAN", 
+                "HASAKI", "MARELI", "MARCO", "DIFFLOCK", "NWB", "COMPACT", "MTISUBISHI", "CKD", "DOSSAN", "CIGWELL", "USA", "CB", 
+                "YAZAKI", "RWB", "DEUTCSH", "HELLO", "RADIAL", "MASSIV", "TAIYEDQ", "TESSAN", "CHEVROLET", "FORTE", "MAXXIS", 
+                "MILENIUM", "NAPLE", "DAY", "SAMCO", "TOPU", "SANKOMEC", "BRILLIAN", "POTENSIO", "BLACKFOOT", "MASCO", "DOZIRO", 
+                "AUDIOLINE", "CHARGI", "TAYEE", "PARTECH", "ANJIEYOU", "KENZO", "UCHIDA", "VIEWSONIC", "HEICO", "IMMOBILIZER", "OMEN", 
+                "TANZU", "GASOLINE", "HALTEC", "WFX", "PUTIH-KUNING", "SAGINOMIYA", "TZBELIEVE", "ARAMCO", "MUYOTO", "NOVOTEST", 
+                "STAHLWERK", "ZIZHU", "BLACKMER", "GAOYASHUIQIANG", "CAMBIUM", "NIKON", "MIRACAST", "ESP", "ECHAIN", "LEOPARD", 
+                "LOTFET", "OSAKAIR", "BROTHERS", "NIKKEN", "DEKSON", "ARMY", "TOYAMA", "MELENIUM", "CONTEC", "HALLMAN", "PRECISION", 
+                "INTECHS", "SHEATHING", "DEUTZOK", "VETRON", "NCH", "CALDWELD", "RIVERWELD", "IWF", "BACKET", "KACON", "ANTELI", 
+                "TROMBETTA", "HMSI", "PHILIPPS", "EVEREST", "KAMATO", "EATON", "JIKIU", "BLACKCAT", "CRANT", "ETG", "HENGTS", 
+                "HPP", "TORQUE", "HONEYWHELL", "MILEESTONE", "FLEETFUARD", "TZBELIEV", "NATURAL", "KNORR", "AIRMAIL", "POWERBOND", 
+                "JOKTHEEL", "BIOHAZARD", "DIKLOFENAK", "SEAC", "HCL", "OPTIMAX", "VARISCO", "DWO", "PRESCOTT", "KENEDY", "DUTEC", 
+                "MINICOMBI", "MURAKU", "BLACKBULL", "MONICA", "NISSON", "AQUABIDES", "HOULING", "HURRICANE", "DNS", "PGO", 
+                "FSCULTRIS", "LUPROMAX", "UTC", "SIKKEN", "ADHESIVE", "CAT"
+            ].map(b => b.trim().toUpperCase()));
+
+            // Helper: Read Excel File
+            const readExcel = (file) => {
+                return new Promise((resolve, reject) => {
+                    if (!file) {
+                        reject(new Error("File tidak ditemukan"));
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    
+                    reader.onload = (e) => {
+                        try {
+                            const data = e.target.result;
+                            if (!window.XLSX) {
+                                throw new Error("Library Excel belum siap. Harap tunggu.");
+                            }
+
+                            const workbook = window.XLSX.read(data, { type: 'array' });
+                            if (!workbook.SheetNames.length) {
+                                throw new Error("File kosong.");
+                            }
+
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            const json = window.XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                            resolve(json);
+                        } catch (err) {
+                            reject(new Error("Gagal parsing Excel: " + err.message));
+                        }
+                    };
+                    
+                    reader.onerror = () => reject(new Error("Gagal membaca file."));
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            // Helper: Normalize Keys
+            const normalizeKeys = (obj) => {
+                const newObj = {};
+                Object.keys(obj).forEach(key => {
+                    newObj[key.toLowerCase().trim().replace(/[\s_./-]/g, '')] = obj[key];
+                });
+                return newObj;
+            };
+
+            // Helper: Extract Brand from Description
+            const extractBrandFromDesc = (desc) => {
+                if (!desc) return null;
+                const descUpper = String(desc).toUpperCase();
+                for (let brand of ALLOWED_BRANDS) {
+                    if (descUpper.includes(brand)) {
+                        return brand;
+                    }
+                }
+                return null;
+            };
+
+            const handleProcess = async () => {
+                if (!window.XLSX) {
+                    setError("Sistem Excel belum siap.");
+                    return;
+                }
+                if (usageFiles.length === 0 || !assetFile) {
+                    setError("Harap unggah semua file: Data Pemakaian (MB51 2019-2025) DAN Brand By Equipment.");
+                    return;
+                }
+
+                setIsProcessing(true);
+                setError('');
+                setResults([]);
+                setProgressMsg('Mempersiapkan data...');
+
+                setTimeout(async () => {
+                    try {
+                        // --- LANGKAH A: PEMETAAN ASET ---
+                        setProgressMsg('Membaca File Brand By Equipment...');
+                        const rawAssetData = await readExcel(assetFile);
+                        
+                        const assetMap = new Map(); 
+
+                        rawAssetData.forEach(row => {
+                            const norm = normalizeKeys(row);
+                            const equipId = norm['equipment'] || norm['equepment'] || norm['noequipment'] || norm['unit'];
+                            const brand = norm['merk'] || norm['brand'] || norm['manufacturer']; 
+                            
+                            const site = norm['sitepit'] || norm['site'] || norm['pit'] || norm['lokasi'] || norm['project'];
+
+                            if (equipId) {
+                                const cleanID = String(equipId).trim();
+                                const cleanBrand = brand ? String(brand).toUpperCase().trim() : "UNKNOWN";
+                                const cleanSite = site ? String(site).toUpperCase().trim() : "-";
+                                
+                                assetMap.set(cleanID, { brand: cleanBrand, site: cleanSite });
+                            }
+                        });
+
+                        // --- LANGKAH B: PROSES DATA MB51 (MULTI FILES) ---
+                        let allRawUsageData = [];
+                        
+                        for (let i = 0; i < usageFiles.length; i++) {
+                            setProgressMsg(`Membaca File MB51 (${i + 1} dari ${usageFiles.length})...`);
+                            const fileData = await readExcel(usageFiles[i]);
+                            allRawUsageData = allRawUsageData.concat(fileData);
+                        }
+
+                        setProgressMsg(`Total ${allRawUsageData.length} baris data transaksi. Menghitung frekuensi...`);
+
+                        // Hitung Frekuensi
+                        const frequencyMap = new Map();
+                        allRawUsageData.forEach(row => {
+                            const norm = normalizeKeys(row);
+                            const material = String(norm['material'] || norm['materialno'] || norm['nomaterial'] || '').trim();
+                            const equipId = String(norm['equipment'] || norm['noequipment'] || norm['unit'] || '').trim();
+                            if (material && equipId) {
+                                const key = `${material}|${equipId}`;
+                                frequencyMap.set(key, (frequencyMap.get(key) || 0) + 1);
+                            }
+                        });
+
+                        // Analisa Utama
+                        setProgressMsg(`Menganalisa data...`);
+                        const mpnGroups = {}; 
+
+                        for (let i = 0; i < allRawUsageData.length; i++) {
+                            const row = allRawUsageData[i];
+                            const norm = normalizeKeys(row);
+                            
+                            const material = norm['material'] || norm['materialno'] || norm['nomaterial'];
+                            const rawMpn = norm['mpn'] || norm['manufacturerpartno'] || norm['partnumber'];
+                            const equipIdFromMB51 = norm['equipment'] || norm['noequipment'] || norm['unit'];
+                            const desc = norm['description'] || norm['materialdescription'] || norm['deskripsi'];
+                            
+                            if (!material || !rawMpn) continue;
+
+                            // FILTER: Material diawali angka 5 tidak dimasukkan
+                            if (String(material).trim().startsWith('5')) {
+                                continue;
+                            }
+
+                            const mpnKey = String(rawMpn).trim().toUpperCase();
+                            if (mpnKey.length < 2 || mpnKey === 'N/A' || mpnKey === 'NO PART') continue;
+
+                            const cleanEquipId = equipIdFromMB51 ? String(equipIdFromMB51).trim() : "";
+
+                            // Filter Numeric Equipment
+                            if (/^\d/.test(cleanEquipId)) continue; 
+
+                            // Lookup Equipment Brand & Site
+                            let eqBrand = "-"; 
+                            let eqSite = "-"; 
+
+                            if (cleanEquipId && assetMap.has(cleanEquipId)) {
+                                const assetInfo = assetMap.get(cleanEquipId);
+                                eqBrand = assetInfo.brand; 
+                                eqSite = assetInfo.site; 
+                            }
+
+                            // Koreksi Brand khusus
+                            if (eqBrand === "RIIPING DOZING") eqBrand = "KOMATSU";
+
+                            // Filter Whitelist
+                            if (!ALLOWED_BRANDS.has(eqBrand)) continue;
+
+                            // --- LOGIKA LOKASI SITE (CLUSTER) ---
+                            const SUMATERA_SITES = ["MME", "MAS", "COMEX CILEGON", "CILEGON", "PMSS"];
+                            let siteLocation = "Kalimantan"; 
+                            
+                            if (eqSite && eqSite !== "-") {
+                                if (SUMATERA_SITES.includes(eqSite.toUpperCase())) {
+                                    siteLocation = "Cluster Sumatera";
+                                }
+                            }
+
+                            // --- LOGIKA BARU: DETEKSI BRAND DARI DESKRIPSI MATERIAL ---
+                            const materialBrand = extractBrandFromDesc(desc);
+
+                            // --- TENTUKAN STATUS GENUINE ---
+                            let genuineStatus = "Non Genuine";
+                            if (materialBrand && eqBrand !== "-" && eqBrand !== "UNKNOWN") {
+                                if (materialBrand === eqBrand) {
+                                    genuineStatus = "Genuine";
+                                }
+                            }
+
+                            // Ambil Frekuensi
+                            const freqKey = `${String(material).trim()}|${cleanEquipId}`;
+                            const transCount = frequencyMap.get(freqKey) || 1;
+
+                            if (!mpnGroups[mpnKey]) {
+                                mpnGroups[mpnKey] = [];
+                            }
+
+                            mpnGroups[mpnKey].push({
+                                Material: String(material).trim(),
+                                Description: desc || '',
+                                MPN: String(rawMpn).trim(),
+                                EquipId: cleanEquipId,
+                                Brand: eqBrand, 
+                                Site: eqSite, 
+                                SiteLocation: siteLocation, 
+                                MatBrand: materialBrand, 
+                                TransCount: transCount,
+                                GenuineStatus: genuineStatus
+                            });
+                        }
+
+                        setProgressMsg(`Mengkalkulasi kandidat...`);
+
+                        // ---------------------------------------------------------
+                        // LANGKAH D: LOGIKA KANDIDAT & REKOMENDASI BY DATA (REVISI II)
+                        // ---------------------------------------------------------
+                        const finalCandidates = [];
+
+                        Object.keys(mpnGroups).forEach(mpn => {
+                            const transactions = mpnGroups[mpn];
+                            const uniqueMaterialsMap = new Map();
+
+                            // Deduplikasi material dalam grup
+                            transactions.forEach(trx => {
+                                const matCode = trx.Material;
+                                if (!uniqueMaterialsMap.has(matCode)) {
+                                    uniqueMaterialsMap.set(matCode, { ...trx, Count: 1 });
+                                } else {
+                                    uniqueMaterialsMap.get(matCode).Count++;
+                                }
+                            });
+
+                            const distinctMaterials = Array.from(uniqueMaterialsMap.values());
+
+                            // JIKA > 1 MATERIAL BERBEDA -> KANDIDAT
+                            if (distinctMaterials.length > 1) {
+                                
+                                // --- LOGIKA REKOMENDASI BY DATA ---
+                                const nonGenuineItems = distinctMaterials.filter(i => i.GenuineStatus !== "Genuine");
+                                const maxNonGenTransCount = nonGenuineItems.length > 0 
+                                    ? Math.max(...nonGenuineItems.map(i => i.TransCount)) 
+                                    : 0;
+
+                                // Tie-breaker for Non-Genuine
+                                let winnerNonGenuineMaterial = null;
+                                if (maxNonGenTransCount > 0) {
+                                    const topContenders = nonGenuineItems
+                                        .filter(i => i.TransCount === maxNonGenTransCount)
+                                        .sort((a, b) => a.Material.localeCompare(b.Material)); 
+                                    
+                                    if (topContenders.length > 0) {
+                                        winnerNonGenuineMaterial = topContenders[0].Material;
+                                    }
+                                }
+
+                                distinctMaterials.forEach(item => {
+                                    let recommendation = "NOK";
+                                    
+                                    if (item.GenuineStatus === "Genuine") {
+                                        recommendation = "OK";
+                                    } 
+                                    else if (item.Material === winnerNonGenuineMaterial) {
+                                        recommendation = "OK";
+                                    }
+
+                                    finalCandidates.push({
+                                        ...item,
+                                        CandidateReason: `MPN ${mpn} digunakan oleh ${distinctMaterials.length} Material berbeda`,
+                                        DataRecommendation: recommendation 
+                                    });
+                                });
+                            }
+                        });
+
+                        finalCandidates.sort((a, b) => {
+                            if (a.MPN !== b.MPN) return a.MPN.localeCompare(b.MPN);
+                            return a.Material.localeCompare(b.Material);
+                        });
+
+                        setResults(finalCandidates);
+                        setStep(2);
+
+                    } catch (err) {
+                        console.error(err);
+                        setError(err.message || "Terjadi kesalahan saat memproses file.");
+                    } finally {
+                        setIsProcessing(false);
+                        setProgressMsg('');
+                    }
+                }, 500);
+            };
+
+            const handleDownload = () => {
+                if (!results.length) return;
+
+                const exportData = results.map(item => ({
+                    "Material Code": item.Material,
+                    "Material Description": item.Description,
+                    "Genuine / Non": item.GenuineStatus,
+                    "Manufacturer Part No (MPN)": item.MPN,
+                    "Jml Transaksi": item.TransCount, 
+                    "Equipment ID": item.EquipId,
+                    "Brand (Merk)": item.Brand,
+                    "Site": item.Site, 
+                    "Lokasi Site": item.SiteLocation, 
+                    "Status": "Kandidat FF Class",
+                    "Keterangan": item.CandidateReason,
+                    "Rekomendasi By Data": item.DataRecommendation 
+                }));
+
+                const ws = window.XLSX.utils.json_to_sheet(exportData, {
+                    header: [
+                        "Material Code", "Material Description", "Genuine / Non", "Manufacturer Part No (MPN)", 
+                        "Jml Transaksi", "Equipment ID", "Brand (Merk)", "Site", "Lokasi Site", 
+                        "Status", "Keterangan", "Rekomendasi By Data"
+                    ]
+                });
+
+                const merges = [];
+                let startRow = 1; 
+
+                for (let i = 0; i < results.length; i++) {
+                    if (i === results.length - 1 || results[i].MPN !== results[i + 1].MPN) {
+                        const endRow = i + 1;
+                        if (endRow > startRow) {
+                            merges.push({ s: { r: startRow, c: 3 }, e: { r: endRow, c: 3 } }); // MPN
+                            merges.push({ s: { r: startRow, c: 9 }, e: { r: endRow, c: 9 } }); // Status
+                            merges.push({ s: { r: startRow, c: 10 }, e: { r: endRow, c: 10 } }); // Keterangan
+                        }
+                        startRow = endRow + 1;
+                    }
+                }
+
+                ws['!merges'] = merges;
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, "Kandidat FF Class");
+                window.XLSX.writeFile(wb, "Hasil_Analisa_FF_Class.xlsx");
+            };
+
+            const reset = () => {
+                setUsageFiles([]);
+                setAssetFile(null);
+                setResults([]);
+                setStep(1);
+                setError('');
+            };
+
+            const mpnCounts = results.reduce((acc, item) => {
+                acc[item.MPN] = (acc[item.MPN] || 0) + 1;
+                return acc;
+            }, {});
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
+                    <div className="max-w-full mx-auto">
+                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-navy-900 animate-fade-in">
+                            <h1 className="text-2xl font-bold text-navy-900 flex items-center gap-3">
+                                <IconLayers className="w-8 h-8 text-orange-500" />
+                                Aplikasi Analisa FF Class
+                            </h1>
+                            <p className="text-slate-500 mt-2 text-sm">
+                                Mendeteksi potensi Interchangeability Material. Menggunakan Data Brand untuk referensi.
+                            </p>
+                        </div>
+
+                        {step === 1 && (
+                            <div className="grid md:grid-cols-2 gap-6 animate-fade-in"> 
+                                <div className={`relative group bg-white p-8 rounded-2xl shadow-md border-2 border-dashed transition-all duration-300 hover:shadow-xl ${usageFiles.length > 0 ? 'border-orange-400 bg-orange-50' : 'border-slate-300 hover:border-orange-400'}`}>
+                                    <div className="flex flex-col items-center text-center">
+                                        <div className={`p-4 rounded-full mb-4 shadow-sm ${usageFiles.length > 0 ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                                            {usageFiles.length > 0 ? <IconFileText className="w-10 h-10 text-orange-600" /> : <IconFileSpreadsheet className="w-10 h-10 text-slate-500" />}
+                                        </div>
+                                        <h3 className="font-bold text-lg mb-1 text-slate-800">1. Data Pemakaian (MB51)</h3>
+                                        <p className="text-xs text-slate-500 mb-6">Upload file tahun 2019 s/d 2025</p>
+                                        <input 
+                                            type="file" 
+                                            accept=".xlsx, .xls"
+                                            multiple 
+                                            onChange={(e) => setUsageFiles(Array.from(e.target.files))} 
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                        <button className={`pointer-events-none px-5 py-2.5 rounded-lg font-medium text-sm transition-all shadow-sm ${usageFiles.length > 0 ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200' : 'bg-slate-100 text-slate-600'}`}>
+                                            {usageFiles.length > 0 ? `${usageFiles.length} File Terpilih` : "Pilih File Excel (Bisa Banyak)"}
+                                        </button>
+                                        {usageFiles.length > 0 && (
+                                            <p className="text-xs text-orange-700 mt-3 max-w-xs truncate font-medium">
+                                                {usageFiles.map(f => f.name).join(', ')}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className={`relative group bg-white p-8 rounded-2xl shadow-md border-2 border-dashed transition-all duration-300 hover:shadow-xl ${assetFile ? 'border-orange-400 bg-orange-50' : 'border-slate-300 hover:border-orange-400'}`}>
+                                    <div className="flex flex-col items-center text-center">
+                                        <div className={`p-4 rounded-full mb-4 shadow-sm ${assetFile ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                                            <IconFilter className={`w-10 h-10 ${assetFile ? 'text-orange-600' : 'text-slate-500'}`} />
+                                        </div>
+                                        <h3 className="font-bold text-lg mb-1 text-slate-800">2. Brand By Equipment</h3>
+                                        <p className="text-xs text-slate-500 mb-6">Excel (.xlsx/csv)</p>
+                                        <input 
+                                            type="file" 
+                                            accept=".xlsx, .xls, .csv"
+                                            onChange={(e) => setAssetFile(e.target.files[0])}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                        <button className={`pointer-events-none px-5 py-2.5 rounded-lg font-medium text-sm transition-all shadow-sm ${assetFile ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200' : 'bg-slate-100 text-slate-600'}`}>
+                                            {assetFile ? assetFile.name : "Pilih File Brand"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2 flex flex-col items-center justify-center mt-6">
+                                    {error && (
+                                        <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-lg mb-4 w-full max-w-xl border border-red-100 shadow-sm animate-fade-in">
+                                            <IconAlertCircle className="w-5 h-5 flex-shrink-0" />
+                                            <span className="text-sm font-medium">{error}</span>
+                                        </div>
+                                    )}
+                                    
+                                    <button
+                                        onClick={handleProcess}
+                                        disabled={isProcessing || usageFiles.length === 0 || !assetFile}
+                                        className={`w-full max-w-md py-3.5 px-6 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-3 transform active:scale-95
+                                            ${isProcessing || usageFiles.length === 0 || !assetFile
+                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                                                : 'bg-navy-900 text-white hover:bg-navy-800 hover:shadow-xl hover:-translate-y-1'}`}
+                                    >
+                                        {isProcessing ? (
+                                            <>
+                                                <IconLoader2 className="w-5 h-5 animate-spin" />
+                                                <span className="text-base font-normal">{progressMsg || "Sedang Memproses..."}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                Mulai Analisa
+                                                <IconArrowRight className="w-5 h-5" />
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 2 && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-lg">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-800">Hasil Identifikasi Kandidat</h2>
+                                        <p className="text-slate-500 text-sm mt-1">
+                                            Ditemukan <span className="font-bold text-orange-600">{results.length}</span> baris data.
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={reset} className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium flex items-center gap-2 transition-colors">
+                                            <IconRefreshCw className="w-4 h-4" /> Ulangi
+                                        </button>
+                                        <button onClick={handleDownload} className="px-5 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:shadow-lg font-medium flex items-center gap-2 shadow-md transition-all hover:-translate-y-0.5">
+                                            <IconDownload className="w-4 h-4" /> Download Excel
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {results.length === 0 ? (
+                                    <div className="bg-white p-16 rounded-2xl text-center border-2 border-dashed border-slate-300">
+                                        <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <IconCheckCircle className="w-8 h-8 text-emerald-500" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-slate-800">Tidak Ada Kandidat</h3>
+                                        <p className="text-slate-500 mt-2">Semua MPN memiliki hubungan 1-ke-1 dengan Kode Material (atau Brand tidak terdaftar).</p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
+                                        <div className="overflow-x-auto custom-scrollbar">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead className="bg-navy-900 text-white text-[10px] uppercase font-bold tracking-wider">
+                                                    <tr>
+                                                        <th className="p-3 border-r border-navy-800/50">Material Code</th>
+                                                        <th className="p-3 border-r border-navy-800/50">Deskripsi Material</th>
+                                                        <th className="p-3 border-r border-navy-800/50 text-center">Genuine / Non</th>
+                                                        <th className="p-3 border-r border-navy-800/50 bg-orange-600 text-white text-center">Manufacturer Part No (MPN)</th>
+                                                        <th className="p-3 border-r border-navy-800/50 text-center w-20">Jml Transaksi</th>
+                                                        <th className="p-3 border-r border-navy-800/50">Equipment</th>
+                                                        <th className="p-3 border-r border-navy-800/50">Brand (Merk)</th>
+                                                        <th className="p-3 border-r border-navy-800/50 text-center">Site</th>
+                                                        <th className="p-3 border-r border-navy-800/50 text-center">Lokasi Site</th>
+                                                        <th className="p-3 bg-slate-800 text-white text-center w-32">Status</th>
+                                                        <th className="p-3 bg-orange-500 text-white text-center w-32">Rekomendasi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-200 text-xs">
+                                                    {results.map((item, idx) => {
+                                                        const isFirstInGroup = idx === 0 || item.MPN !== results[idx - 1].MPN;
+                                                        const rowSpan = mpnCounts[item.MPN];
+                                                        
+                                                        return (
+                                                            <tr key={idx} className={`hover:bg-orange-50/50 transition-colors ${isFirstInGroup && idx !== 0 ? 'border-t-4 border-slate-300' : 'border-t border-slate-100'}`}>
+                                                                <td className="p-2 border-r border-slate-100 font-mono text-slate-600 font-semibold align-middle">{item.Material}</td>
+                                                                <td className="p-2 border-r border-slate-100 text-slate-700 align-middle">{item.Description}</td>
+                                                                
+                                                                <td className={`p-2 border-r border-slate-100 text-center font-bold align-middle ${item.GenuineStatus === 'Genuine' ? 'text-navy-600' : 'text-orange-600'}`}>
+                                                                    {item.GenuineStatus}
+                                                                </td>
+
+                                                                {isFirstInGroup && (
+                                                                    <td rowSpan={rowSpan} className="p-2 border-r border-slate-300 font-bold text-orange-600 bg-white align-middle text-center border-b-4 shadow-sm">
+                                                                        {item.MPN}
+                                                                    </td>
+                                                                )}
+                                                                
+                                                                <td className="p-2 border-r border-slate-100 text-center font-semibold text-slate-700 align-middle bg-slate-50/50">
+                                                                    {item.TransCount}
+                                                                </td>
+
+                                                                <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-slate-500 align-middle">{item.EquipId}</td>
+                                                                <td className="p-2 border-r border-slate-100 font-bold text-slate-700 align-middle">{item.Brand}</td>
+                                                                <td className="p-2 border-r border-slate-100 text-slate-600 align-middle text-center">{item.Site}</td>
+                                                                <td className="p-2 border-r border-slate-100 text-slate-600 align-middle text-center font-medium bg-slate-50/30">{item.SiteLocation}</td>
+                                                                
+                                                                {isFirstInGroup && (
+                                                                    <td rowSpan={rowSpan} className="p-2 align-middle text-center bg-white border-b-4 border-slate-300">
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-navy-100 text-navy-800 border border-navy-200">
+                                                                            Kandidat FF Class
+                                                                        </span>
+                                                                    </td>
+                                                                )}
+
+                                                                <td className={`p-2 border-r border-slate-100 text-center font-bold align-middle ${item.DataRecommendation === 'OK' ? 'text-white bg-navy-500' : 'text-white bg-red-500'}`}>
+                                                                    {item.DataRecommendation}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
