@@ -358,6 +358,9 @@
         const CSV_ANTREAN_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRkpwdJk6lxy8BCBqhiUOUNcE6Hdaotgn91eGwpplVZ37aTmvUKbMEYS6CELvugNhv7QNN-_I3a4Xo/pub?gid=0&single=true&output=csv';
         // ---------------------------
 
+        // PENYARING LOKAL: Menyimpan nomor material yang sudah disubmit dalam sesi ini agar langsung tersembunyi
+        const locallySubmittedMaterials = new Set();
+
         // UI TOAST NOTIFICATION UTILITY (Menggantikan alert browser untuk visual halus & tanpa lag)
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toastNotification');
@@ -406,7 +409,7 @@
             });
         }
 
-        // FUNGSI KOMPRESI FOTO (Memperkecil payload Base64 agar pengiriman 10x lipat lebih cepat)
+        // FUNGSI KOMPRESI FOTO OPTIMAL (Kompresi ke 800px & kualitas 50% membuat file super kecil ~30KB)
         function compressImage(file, maxWidth, maxHeight, quality) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -436,7 +439,7 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
 
-                        // Output format JPEG yang sangat terkompresi dan ringan
+                        // Output format JPEG sangat terkompresi dan sangat ringan
                         const dataUrl = canvas.toDataURL('image/jpeg', quality);
                         const base64 = dataUrl.split(',')[1];
                         resolve(base64);
@@ -636,8 +639,8 @@
                     const materialNumber = row[2] ? row[2].trim() : '';
                     const fotoFisik = row[8] ? row[8].trim() : '';
                     
-                    // Logika: Jika Material Number terisi DAN Foto Fisik masih blank -> Masuk Antrean
-                    if (materialNumber !== '' && fotoFisik === '') {
+                    // Logika: Jika Material Number terisi DAN Foto Fisik masih blank DAN belum disubmit di sesi ini -> Masuk Antrean
+                    if (materialNumber !== '' && fotoFisik === '' && !locallySubmittedMaterials.has(materialNumber)) {
                         pendingList.push({
                             materialNumber: materialNumber,
                             mpn: row[3] ? row[3].trim() : '',              // Col D
@@ -924,9 +927,9 @@
 
                 // Jalankan proses kompresi asinkron di background secara instan
                 try {
-                    // Kompresi foto ke dimensi rasional max 1024px dengan kualitas tajam namun super ringan (0.7)
-                    // Hasil kompresi berkisar antara 100KB - 200KB (bukan 5MB-10MB lagi)
-                    const compressedBase64 = await compressImage(file, 1024, 1024, 0.7);
+                    // OPTIMASI MAX SPEED: Mengubah kompresi ke dimensi 800px dan kualitas 50%.
+                    // Menghasilkan file yang sangat ringan (~30KB) namun tetap sangat jelas di spreadsheet.
+                    const compressedBase64 = await compressImage(file, 800, 800, 0.5);
                     fotoBase64Input.value = compressedBase64;
                 } catch (err) {
                     console.error("Kompresi gagal, menggunakan fallback default reader:", err);
@@ -1020,6 +1023,11 @@
 
                 loadingOverlay.classList.replace('flex', 'hidden');
                 
+                // Tambahkan nomor material yang baru saja disubmit ke penyaring lokal
+                if (dataObj.materialNumber) {
+                    locallySubmittedMaterials.add(dataObj.materialNumber.trim());
+                }
+
                 // Tampilkan pop-up keterangan sukses (auto-closing modal)
                 successModal.classList.remove('hidden');
                 
@@ -1040,7 +1048,9 @@
                 togglePotensi(false);
                 
                 if (currentUserRole === 'Plant') {
-                    fetchPendingMaterials(); // Refresh antrean dropdown
+                    // Tarik ulang antrean. Fungsi ini sekarang menyaring locallySubmittedMaterials,
+                    // sehingga item yang disubmit langsung hilang dari dropdown seketika.
+                    fetchPendingMaterials(); 
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
 
