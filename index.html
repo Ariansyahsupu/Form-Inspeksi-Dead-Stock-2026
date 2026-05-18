@@ -2,737 +2,1059 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analisa FF Class - Corporate Edition</title>
-    
-    <!-- Tailwind CSS (Styling) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inspeksi Dead Stock 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- React & ReactDOM (Core Framework) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel (JSX Compiler in Browser) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- SheetJS (Excel Processing Library) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-    <!-- Konfigurasi Tema Warna -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        navy: {
-                            50: '#f0f4f8',
-                            100: '#d9e2ec',
-                            200: '#bcccdc',
-                            300: '#9fb3c8',
-                            400: '#829ab1',
-                            500: '#627d98',
-                            600: '#486581',
-                            700: '#334e68',
-                            800: '#243b53',
-                            900: '#102a43', // Deep Navy (Header)
-                        },
-                        orange: {
-                            500: '#f97316', // Bright Orange (Buttons)
-                            600: '#ea580c', // Darker Orange (Hover)
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom scrollbar agar tabel terlihat rapi */
-        .custom-scrollbar::-webkit-scrollbar {
-            height: 8px;
-            width: 8px;
+        /* Custom Styles for Professional Mobile Experience */
+        body {
+            background-color: #f8fafc; /* slate-50 */
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9; 
+        .form-section {
+            background: white;
+            border-radius: 1rem;
+            border: 1px solid #e2e8f0; /* slate-200 */
+            box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
+        .input-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1; /* slate-300 */
+            border-radius: 0.75rem;
+            margin-top: 0.35rem;
+            font-size: 0.95rem; 
+            transition: all 0.2s ease;
+            color: #334155; /* slate-700 */
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #64748b; /* slate-500 */
+            box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15);
+        }
+        .input-field[readonly] {
+            background-color: #f1f5f9; /* slate-100 */
+            border-color: #e2e8f0; /* slate-200 */
+            color: #64748b; /* slate-500 */
+            cursor: not-allowed;
+        }
+        .radio-card {
+            display: flex;
+            align-items: flex-start;
+            padding: 0.875rem;
+            border: 1px solid #cbd5e1; /* slate-300 */
+            border-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #ffffff;
+        }
+        .radio-card:has(input:checked) {
+            background-color: #f8fafc; /* slate-50 */
+            border-color: #0f172a; /* slate-900 */
+            box-shadow: 0 0 0 1px #0f172a;
+        }
+        .radio-card input[type="radio"] {
+            margin-top: 0.25rem;
+            margin-right: 0.75rem;
+            width: 1.1rem;
+            height: 1.1rem;
+            accent-color: #0f172a; /* slate-900 */
+        }
+        /* Custom scrollbar for textareas */
+        textarea::-webkit-scrollbar {
+            width: 6px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
             border-radius: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; 
-        }
-        
-        /* Animasi halus saat elemen muncul */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
+        /* Custom Toast Notification Smooth Fade */
+        #toastNotification {
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 antialiased selection:bg-orange-100 selection:text-orange-900">
+<body class="text-slate-800 pb-20">
 
-    <div id="root"></div>
+    <!-- Custom Toast Container -->
+    <div id="toastNotification" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-[200] opacity-0 pointer-events-none flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 max-w-sm w-11/12">
+        <div class="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800 shrink-0">
+            <i id="toastIcon" class="fas fa-info-circle text-blue-400"></i>
+        </div>
+        <span id="toastMessage" class="text-xs font-semibold leading-snug"></span>
+    </div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fixed inset-0 bg-gradient-to-br from-slate-700 to-slate-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm border border-slate-100">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-5 rotate-3 hover:rotate-0 transition-transform">
+                    <i class="fas fa-fingerprint text-3xl text-slate-700"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Portal Inspeksi</h2>
+                <p class="text-sm text-slate-500 mt-1">Dead Stock Management 2026</p>
+            </div>
+            <div class="mb-5">
+                <input type="text" id="loginPicName" class="input-field w-full text-center text-lg py-3 mb-3 font-medium uppercase" placeholder="Nama PIC" oninput="this.value = this.value.toUpperCase()">
+                <input type="password" id="loginPassword" class="input-field w-full text-center text-xl tracking-[0.25em] py-3 uppercase" placeholder="••••••••" oninput="this.value = this.value.toUpperCase()">
+                <p id="loginError" class="text-red-500 text-xs text-center mt-2 hidden font-medium"><i class="fas fa-exclamation-circle mr-1"></i><span id="loginErrorMsg">Kredensial tidak valid</span></p>
+            </div>
+            <button type="button" id="btnLogin" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 active:scale-[0.98] text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-slate-900/20">Otorisasi Masuk</button>
+        </div>
+    </div>
 
-        // --- ICONS (SVG) ---
-        const IconFileSpreadsheet = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
-        );
-        const IconFileText = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-        );
-        const IconFilter = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        );
-        const IconLayers = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
-        );
-        const IconCheckCircle = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        );
-        const IconAlertCircle = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-        );
-        const IconRefreshCw = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-        );
-        const IconDownload = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-        );
-        const IconLoader2 = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        );
-        const IconArrowRight = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        );
+    <!-- Header -->
+    <header id="appHeader" class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg hidden border-b border-slate-700">
+        <div class="flex items-center justify-between max-w-lg mx-auto">
+            <h1 class="text-lg font-bold tracking-tight"><i class="fas fa-clipboard-check mr-2 text-slate-300"></i> Inspeksi <span id="roleBadge" class="text-[10px] bg-slate-700 text-slate-200 border border-slate-600 font-bold px-2.5 py-1 rounded-full ml-2 align-middle tracking-wide uppercase"></span></h1>
+            <div class="flex gap-2 items-center">
+                <span class="text-xs bg-slate-800 border border-slate-600 text-slate-300 px-2 py-1 rounded-md font-medium">v2026</span>
+                <button type="button" id="btnLogout" class="text-xs bg-red-600 hover:bg-red-700 active:scale-[0.95] text-white px-2.5 py-1.5 rounded-md font-bold transition-all shadow-sm"><i class="fas fa-sign-out-alt mr-1"></i> Back</button>
+            </div>
+        </div>
+    </header>
 
-        // --- MAIN APP COMPONENT ---
-        function App() {
-            // State Management
-            const [usageFiles, setUsageFiles] = useState([]); 
-            const [assetFile, setAssetFile] = useState(null); 
+    <!-- Main Form -->
+    <main id="mainApp" class="p-4 max-w-lg mx-auto hidden mt-2">
+        <form id="inspeksiForm" class="space-y-5">
             
-            const [isProcessing, setIsProcessing] = useState(false);
-            const [progressMsg, setProgressMsg] = useState('');
-            const [results, setResults] = useState([]);
-            const [error, setError] = useState('');
-            const [step, setStep] = useState(1);
+            <!-- Section 1: Identitas Material -->
+            <div class="form-section" id="sectionIdentitas">
+                <h2 class="text-sm font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3 uppercase tracking-wide"><i class="fas fa-box text-slate-400 mr-2"></i>Identitas Material</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">Tanggal Inspeksi</label>
+                    <input type="date" id="tanggal" name="tanggal" class="input-field" readonly required>
+                </div>
+                
+                <!-- DROPDOWN KHUSUS PLANT -->
+                <div id="plantDropdownGroup" class="hidden mb-5 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-semibold text-indigo-900"><i class="fas fa-inbox mr-1.5"></i> Antrean Inspeksi (Dari Logistik)</label>
+                        <button type="button" id="btnSyncAntrean" class="text-xs bg-indigo-600 hover:bg-indigo-700 active:scale-[0.95] text-white px-2.5 py-1.5 rounded shadow-sm flex items-center transition-all">
+                            <i class="fas fa-sync-alt mr-1"></i> Sync
+                        </button>
+                    </div>
+                    <select id="pendingMaterialSelect" class="input-field bg-white border-indigo-200 text-indigo-900 font-medium">
+                        <option value="">-- Memuat antrean... --</option>
+                    </select>
+                    <p class="text-xs text-indigo-600 mt-2">*Pilih material untuk memuat detail identitas secara otomatis</p>
+                </div>
 
-            // 1. DAFTAR BRAND VALID (WHITELIST)
-            const ALLOWED_BRANDS = new Set([
-                "KOMATSU", 
-                "EON", "HINO", "BRIDGESTONE", "VOLVO", "GLOMINPRO", "LGMG", "SHANTUI", "MERCEDES BENZ", "ITR", "SHELL", "SDLG", "CASTROL", 
-                "HITACHI", "CATERPILLAR", "WEICHAI", "HOSINDO", "MITSUBISHI", "XCMG", "DENSO", "CUMMINS", "NR", "RYCO", "PARKER", "TOYOTA", 
-                "DONGFENG", "BEIBEN", "DT", "KSS", "HDP", "ISUZU", "MANULI", "DOOSAN", "ZF", "OEM", "TIMKEN", "GRACO", "INDOSPRING", 
-                "PERTAMINA", "KOREA", "PERKINS", "EURORICAMBI", "FLEETGUARD", "ADVANCE", "DONALDSON", "HYDAC", "SANDVIK", "FEURST", 
-                "KUBOTA", "BJORK", "KOYO", "WINNER", "TIANLIE", "KOMAN", "GOODYEAR", "GAMA", "TOTAL", "PVC", "PACIFIC PAINT", "QUICKLUBE", 
-                "SUMITOMORIKO", "JASO", "DANA PAINT", "TIP TOP", "SUPER GLOSS", "REXITE", "SUPREME", "ALASKA", "KISWEL", "DANAGLOSS", 
-                "HEATSHRINK", "MOLY", "HATAKE", "IVORY", "ORCA", "PRIMA", "HARDENER", "VERO", "CEMENT", "HAMMERTONE", "JOTUN", "VECTOR", 
-                "MOTOROLA", "TOMBO", "CHEETAH", "TENGOO", "BOSCH", "M3", "PINGUIN", "DANABRITE", "YAMATO", "TAPE", "EUTECH", "BRONZE", 
-                "PANASONIC", "DECOPLUS", "AVIAN", "DULUX", "HARMONIKA", "MORIS", "OTANI", "SW", "CHW", "KANSAI", "KRISBOW", "ETERNA", 
-                "VOGEL", "CNP", "AIRMAN", "KINGS", "AVITEX", "HARDOX", "HARDOCK", "ALKAN", "NCR", "CIGWELD", "BESTPATCH", "REMAN", 
-                "SYNTHETIC", "SINOTRUK", "TIPTOP", "THM", "HALTEC", "FENDER", "HITTEN", "DANAGLOS", "SANWADENKI", "ZINCHROMATE", "ROLL", 
-                "HOFZ", "DITON", "HARRIS", "DEX", "FERRULE", "TWISTED", "BENZ", "BOMAG", "SHEEL", "T&H", "FLUID-PRESTONE", "BETA", 
-                "PARAGON", "ZENTRUM", "MATSUSAKI", "VITON", "DANALAC", "KALSIBOARD", "KOBELCO", "AMERCOAT", "MEIJI", "KISWIRE", "NETLINE", 
-                "ALPINE", "WIPRO", "WANDA", "FLEX", "MANNAREX", "AKZONOBEL", "CLARK", "ZEAHO", "SIKKENS", "GALAXY", "UNIVERSAL", "HAITEN", 
-                "FUSO", "BEAM", "BRASS", "MILAMIN", "DNY", "POLIBEST", "BERDURI", "SUPERSUNFLEX", "STATIK", "ADDITIVE", "SUPPRESSION", 
-                "BLIND", "LED", "TKN", "HARTEX", "CORE", "KYB", "SKF", "CNMG", "IPS", "MULTIFLO", "ADVANTAGE", "HYUNDAI", "FATOOLS", "KS", 
-                "ANFO", "HYD", "KIRO", "TOGAWA", "STELL", "HEWEIYY", "JAPAN", "SETRA", "YOKOHAMA", "FOX", "ASSEI", "OUTLEADER", "SUPERIOR", 
-                "GOSAVE", "GLOVES", "NYTAMOR", "SUPER", "YUKI", "NICHIRO", "COOLANT", "REPSOL", "LOCTITE", "SUMITOMO", "RIKO", "GLUE", 
-                "BLINKEN", "HYVA", "JUMBO", "INP", "DANAPAINT", "FLOMAX", "FLAG", "FASSI", "SHOVEL", "GTI", "TTHOMSON", "REXCO", "BILIANT", 
-                "KNORR-BREMSE", "RAJAWALI", "COPCO", "ALLMAKES", "TAYOR", "BIRKENS", "UGREEN", "DAIHEN", "3M", "LANDUN", "AXIO", "RIMEX", 
-                "KJH", "WABCO", "GTE", "ATG", "DELTALUBE", "KUNLUN", "WAXCO", "VISCOCITY", "ULTRALINE", "KAESER", "POWER", "DELVAC", 
-                "BERCH", "YK-FLEX", "TOPCON", "TESTER", "GRIESHEIM", "TOWING", "MESH", "DENYO", "SPLN", "SUPERGLOSS", "BELLANOVA", 
-                "SHENZEN", "WASHI", "ANTECH", "SUNFLEX", "USA", "JACKGEN", "DOLKEN", "UNO", "CAT", "NOK", "MEZ", "P&G", "SAKAI", "HDS", 
-                "BANDO", "CHINA", "VERONA", "NTN", "BERCO", "CAMMOZI", "OME", "KBW", "SUPERPRO", "PANTHER", "JPN", "AGE", "FLUIDCON", 
-                "WSP", "NIKEN", "NICHIE", "HILUX", "AIRHORSE", "ARCAIR", "HARMONICA", "MTG", "ICHIRO", "MUTIITOYO", "HAWA", "SCANIA", 
-                "JASMIN", "STAPLER", "SIKEN", "KYORITSU", "STARLINK", "HYDRAMAN", "MAKITA", "CURTIS", "SHEL", "CAESAR", "KAESAR", 
-                "SEIKEN", "DFFILTRI", "MILLENIUM", "COCREA", "KANATI", "JIMCO", "NSA", "SAM", "SANDFLEX", "NESCO", "KING", "CROSS", 
-                "DORFREE", "NANKAI", "ZM", "SIGMA", "DANFOSS", "WB", "BMT", "BULLS", "TYCO", "SILICA", "HAYCARB", "ASANO", "ELP", 
-                "AMP", "SACHS", "PATCH", "HYDROLEDUC", "UBIQUITI", "ASUS", "SMARTGEN", "SPECIA", "YUKEN", "FHAS", "LINCOLN", "METRIC", 
-                "MASSIVE", "YUNG", "LIUGONG", "IMA", "LOVOL", "ELRING", "HANDSTAR", "KWK", "3D", "INA", "Q-LOK", "MASKO", "WILSON", 
-                "ARCHITECH", "EL-FLUIDCA", "TRIANGLE", "DONY", "DYNABOLT", "WIPRO", "YUASA", "JASON", "MST", "DSI", "WR", "JP", "MOTEX", 
-                "ERLING", "OFM", "EXOL", "MDS", "TOZEN", "STR", "FAG", "FENAFLEX", "PILOT", "ZETALUBE", "MAXAM", "MARTIN", "SANY", 
-                "DELCO", "BARTEX", "BRUSHES", "PRESTONE", "NACHI", "HARNESS", "OPK", "XHQ", "BTR", "GENIUS", "STANLEY", "MANILA", 
-                "DOTCO", "UNICON", "MERCY", "UNITED", "SANPOLY", "AKRILIK", "DAYTONA", "KENWOOD", "PHILIPS", "VHB", "ONDA", "VISINE", 
-                "SPAMACINE", "GRATIZINE", "EVERSAME", "TOYOTA", "POE", "ARDUINO", "MG", "NITTO", "LMT", "CATTERPILAR", "PENTOSIN", "GTR", 
-                "GERMANY", "LENOVO", "WAQNDA", "JUNYUE", "SAMSUNG", "JEANS", "CIRCULAR", "ZENER", "LATTEPANDA", "GATS", "SHIGEMITSU", 
-                "MAZAKI", "ENSHU", "ACER", "WIINER", "MITUTOYO", "TMS", "MSI", "DOSEMENLER", "DRAGON", "SWI", "VITATOOLS", "GRC", 
-                "ZINCALUME", "PETROL", "TOKI", "BEHR", "GATE", "PHOENIX", "PUMA", "VALEO", "CORTECO", "IBK", "NG", "FAN", "SAF", 
-                "CHANEL", "SNNXYE", "SHARP", "UTP", "TRC", "HI-CON", "ENCO", "UNS", "NATIONAL", "HOSHI", "JREADY", "HANDOK", "FH", 
-                "QOP", "SWR", "XIRALLIC", "VARIO", "UENO", "MARLON", "NESTLE", "KI-DAI", "BALENO", "NAYABANA", "LEICA", "TKB", 
-                "YUZAKA", "DONFOSS", "SHIMADZU", "HENG", "TOKISAN", "REFLON", "NGS", "HELKER", "CARLISE", "MITSUBIAHI", "TRANSFLEX", 
-                "JEEGEN", "IZUSU", "MITSUWA", "TZUYAOKU", "OTOPARTS", "JAAQEN", "YEC", "HFC", "SEMPERIT", "JIAMPART", "WABIECO", 
-                "ROCKY", "PROKINS", "PREFILTER", "CONTIMAX", "SHACK", "VERONE", "DHP", "GETLF", "JIDECO", "CIEGWIELD", "SHIHLIN", 
-                "HUANGYAN", "JANSTA", "VIVOBOOK", "SUPERGLOS", "UNICOIN", "MEC", "BCK", "MAT29", "YAMAMOTO", "YAMAKO", "MICRON+", 
-                "OFTIMA", "SIHIL", "HONGXIANG", "SANDIKO", "HART", "BONTYRE", "LEEMIN", "CHITOSE", "PROTEX", "HASANS", "QUEST", 
-                "MARUI", "V-TEC", "NEXON", "CLINO", "DENPOO", "ISINA", "SONGRUI", "WRP", "PICCOLO", "NEBU", "SYLVANIA", "SAMHO", 
-                "PANDA", "V-TECH", "VERTEX", "CUBEBATT", "TITANIUM", "SNEIDER", "BTECH", "CHAINWAY", "WELDBRO", "MAXPOWER", "VEEMET", 
-                "MOLYKOTE", "ALTECO", "CONTINENTAL", "DAICO", "HERTEX", "SENSI", "BOWEX", "REFONE", "CHIATEH", "SANYI", "YANHAN", 
-                "HASAKI", "MARELI", "MARCO", "DIFFLOCK", "NWB", "COMPACT", "MTISUBISHI", "CKD", "DOSSAN", "CIGWELL", "USA", "CB", 
-                "YAZAKI", "RWB", "DEUTCSH", "HELLO", "RADIAL", "MASSIV", "TAIYEDQ", "TESSAN", "CHEVROLET", "FORTE", "MAXXIS", 
-                "MILENIUM", "NAPLE", "DAY", "SAMCO", "TOPU", "SANKOMEC", "BRILLIAN", "POTENSIO", "BLACKFOOT", "MASCO", "DOZIRO", 
-                "AUDIOLINE", "CHARGI", "TAYEE", "PARTECH", "ANJIEYOU", "KENZO", "UCHIDA", "VIEWSONIC", "HEICO", "IMMOBILIZER", "OMEN", 
-                "TANZU", "GASOLINE", "HALTEC", "WFX", "PUTIH-KUNING", "SAGINOMIYA", "TZBELIEVE", "ARAMCO", "MUYOTO", "NOVOTEST", 
-                "STAHLWERK", "ZIZHU", "BLACKMER", "GAOYASHUIQIANG", "CAMBIUM", "NIKON", "MIRACAST", "ESP", "ECHAIN", "LEOPARD", 
-                "LOTFET", "OSAKAIR", "BROTHERS", "NIKKEN", "DEKSON", "ARMY", "TOYAMA", "MELENIUM", "CONTEC", "HALLMAN", "PRECISION", 
-                "INTECHS", "SHEATHING", "DEUTZOK", "VETRON", "NCH", "CALDWELD", "RIVERWELD", "IWF", "BACKET", "KACON", "ANTELI", 
-                "TROMBETTA", "HMSI", "PHILIPPS", "EVEREST", "KAMATO", "EATON", "JIKIU", "BLACKCAT", "CRANT", "ETG", "HENGTS", 
-                "HPP", "TORQUE", "HONEYWHELL", "MILEESTONE", "FLEETFUARD", "TZBELIEV", "NATURAL", "KNORR", "AIRMAIL", "POWERBOND", 
-                "JOKTHEEL", "BIOHAZARD", "DIKLOFENAK", "SEAC", "HCL", "OPTIMAX", "VARISCO", "DWO", "PRESCOTT", "KENEDY", "DUTEC", 
-                "MINICOMBI", "MURAKU", "BLACKBULL", "MONICA", "NISSON", "AQUABIDES", "HOULING", "HURRICANE", "DNS", "PGO", 
-                "FSCULTRIS", "LUPROMAX", "UTC", "SIKKEN", "ADHESIVE", "CAT"
-            ].map(b => b.trim().toUpperCase()));
-
-            // Helper: Read Excel File with Improved Error Handling
-            const readExcel = (file) => {
-                return new Promise((resolve, reject) => {
-                    if (!file) {
-                        reject(new Error("File tidak ditemukan"));
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    
-                    reader.onload = (e) => {
-                        try {
-                            const data = e.target.result;
-                            if (!window.XLSX) {
-                                throw new Error("Library Excel belum siap. Harap tunggu atau refresh.");
-                            }
-
-                            const workbook = window.XLSX.read(data, { type: 'array' });
-                            if (!workbook.SheetNames.length) {
-                                throw new Error("File Excel kosong.");
-                            }
-
-                            const firstSheetName = workbook.SheetNames[0];
-                            const worksheet = workbook.Sheets[firstSheetName];
-                            const json = window.XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-                            resolve(json);
-                        } catch (err) {
-                            reject(new Error("Gagal parsing Excel: " + err.message));
-                        }
-                    };
-                    
-                    reader.onerror = () => reject(new Error("Gagal membaca file."));
-                    reader.readAsArrayBuffer(file);
-                });
-            };
-
-            // Helper: Normalize Keys
-            const normalizeKeys = (obj) => {
-                const newObj = {};
-                Object.keys(obj).forEach(key => {
-                    newObj[key.toLowerCase().trim().replace(/[\s_./-]/g, '')] = obj[key];
-                });
-                return newObj;
-            };
-
-            // Helper: Extract Brand from Description
-            const extractBrandFromDesc = (desc) => {
-                if (!desc) return null;
-                const descUpper = String(desc).toUpperCase();
-                for (let brand of ALLOWED_BRANDS) {
-                    if (descUpper.includes(brand)) {
-                        return brand;
-                    }
-                }
-                return null;
-            };
-
-            const handleProcess = async () => {
-                if (!window.XLSX) {
-                    setError("Sistem Excel belum siap.");
-                    return;
-                }
-                if (usageFiles.length === 0 || !assetFile) {
-                    setError("Harap unggah semua file: Data Pemakaian (MB51 2019-2025) DAN Brand By Equipment.");
-                    return;
-                }
-
-                setIsProcessing(true);
-                setError('');
-                setResults([]);
-                setProgressMsg('Mempersiapkan data...');
-
-                setTimeout(async () => {
-                    try {
-                        // --- LANGKAH A: PEMETAAN ASET ---
-                        setProgressMsg('Membaca File Brand By Equipment...');
-                        const rawAssetData = await readExcel(assetFile);
-                        
-                        const assetMap = new Map(); 
-
-                        rawAssetData.forEach(row => {
-                            const norm = normalizeKeys(row);
-                            const equipId = norm['equipment'] || norm['equepment'] || norm['noequipment'] || norm['unit'];
-                            const brand = norm['merk'] || norm['brand'] || norm['manufacturer']; 
-                            
-                            // AMBIL DATA SITE
-                            const site = norm['sitepit'] || norm['site'] || norm['pit'] || norm['lokasi'] || norm['project'];
-
-                            if (equipId) {
-                                const cleanID = String(equipId).trim();
-                                const cleanBrand = brand ? String(brand).toUpperCase().trim() : "UNKNOWN";
-                                const cleanSite = site ? String(site).toUpperCase().trim() : "-";
-                                
-                                assetMap.set(cleanID, { brand: cleanBrand, site: cleanSite });
-                            }
-                        });
-
-                        // --- LANGKAH B: PROSES DATA MB51 (MULTI FILES) ---
-                        let allRawUsageData = [];
-                        
-                        for (let i = 0; i < usageFiles.length; i++) {
-                            setProgressMsg(`Membaca File MB51 (${i + 1} dari ${usageFiles.length})...`);
-                            const fileData = await readExcel(usageFiles[i]);
-                            allRawUsageData = allRawUsageData.concat(fileData);
-                        }
-
-                        setProgressMsg(`Total ${allRawUsageData.length} baris data transaksi. Menghitung frekuensi...`);
-
-                        // Hitung Frekuensi (Pre-processing)
-                        const frequencyMap = new Map();
-                        allRawUsageData.forEach(row => {
-                            const norm = normalizeKeys(row);
-                            const material = String(norm['material'] || norm['materialno'] || norm['nomaterial'] || '').trim();
-                            const equipId = String(norm['equipment'] || norm['noequipment'] || norm['unit'] || '').trim();
-                            if (material && equipId) {
-                                const key = `${material}|${equipId}`;
-                                frequencyMap.set(key, (frequencyMap.get(key) || 0) + 1);
-                            }
-                        });
-
-                        // Analisa Utama
-                        setProgressMsg(`Menganalisa data...`);
-                        const mpnGroups = {}; 
-
-                        for (let i = 0; i < allRawUsageData.length; i++) {
-                            const row = allRawUsageData[i];
-                            const norm = normalizeKeys(row);
-                            
-                            const material = norm['material'] || norm['materialno'] || norm['nomaterial'];
-                            const rawMpn = norm['mpn'] || norm['manufacturerpartno'] || norm['partnumber'];
-                            const equipIdFromMB51 = norm['equipment'] || norm['noequipment'] || norm['unit'];
-                            const desc = norm['description'] || norm['materialdescription'] || norm['deskripsi'];
-                            
-                            if (!material || !rawMpn) continue;
-
-                            // FILTER: Material diawali angka 5 tidak dimasukkan
-                            if (String(material).trim().startsWith('5')) {
-                                continue;
-                            }
-
-                            const mpnKey = String(rawMpn).trim().toUpperCase();
-                            if (mpnKey.length < 2 || mpnKey === 'N/A' || mpnKey === 'NO PART') continue;
-
-                            const cleanEquipId = equipIdFromMB51 ? String(equipIdFromMB51).trim() : "";
-
-                            // Filter Numeric Equipment
-                            if (/^\d/.test(cleanEquipId)) continue; 
-
-                            // Lookup Equipment Brand & Site
-                            let eqBrand = "-"; 
-                            let eqSite = "-"; 
-
-                            if (cleanEquipId && assetMap.has(cleanEquipId)) {
-                                const assetInfo = assetMap.get(cleanEquipId);
-                                eqBrand = assetInfo.brand; 
-                                eqSite = assetInfo.site; 
-                            }
-
-                            // Koreksi Brand khusus
-                            if (eqBrand === "RIIPING DOZING") eqBrand = "KOMATSU";
-
-                            // Filter Whitelist
-                            if (!ALLOWED_BRANDS.has(eqBrand)) continue;
-
-                            // --- LOGIKA LOKASI SITE (CLUSTER) ---
-                            const SUMATERA_SITES = ["MME", "MAS", "COMEX CILEGON", "CILEGON", "PMSS"];
-                            let siteLocation = "Kalimantan"; 
-                            
-                            if (eqSite && eqSite !== "-") {
-                                if (SUMATERA_SITES.includes(eqSite.toUpperCase())) {
-                                    siteLocation = "Cluster Sumatera";
-                                }
-                            }
-
-                            // --- LOGIKA BARU: DETEKSI BRAND DARI DESKRIPSI MATERIAL ---
-                            const materialBrand = extractBrandFromDesc(desc);
-
-                            // --- TENTUKAN STATUS GENUINE ---
-                            let genuineStatus = "Non Genuine";
-                            if (materialBrand && eqBrand !== "-" && eqBrand !== "UNKNOWN") {
-                                if (materialBrand === eqBrand) {
-                                    genuineStatus = "Genuine";
-                                }
-                            }
-
-                            // Ambil Frekuensi
-                            const freqKey = `${String(material).trim()}|${cleanEquipId}`;
-                            const transCount = frequencyMap.get(freqKey) || 1;
-
-                            if (!mpnGroups[mpnKey]) {
-                                mpnGroups[mpnKey] = [];
-                            }
-
-                            mpnGroups[mpnKey].push({
-                                Material: String(material).trim(),
-                                Description: desc || '',
-                                MPN: String(rawMpn).trim(),
-                                EquipId: cleanEquipId,
-                                Brand: eqBrand, 
-                                Site: eqSite, 
-                                SiteLocation: siteLocation, 
-                                MatBrand: materialBrand, 
-                                TransCount: transCount,
-                                GenuineStatus: genuineStatus
-                            });
-                        }
-
-                        setProgressMsg(`Mengkalkulasi kandidat...`);
-
-                        // ---------------------------------------------------------
-                        // LANGKAH D: LOGIKA KANDIDAT & REKOMENDASI BY DATA (REVISI II)
-                        // ---------------------------------------------------------
-                        const finalCandidates = [];
-
-                        Object.keys(mpnGroups).forEach(mpn => {
-                            const transactions = mpnGroups[mpn];
-                            const uniqueMaterialsMap = new Map();
-
-                            // Deduplikasi material dalam grup
-                            transactions.forEach(trx => {
-                                const matCode = trx.Material;
-                                if (!uniqueMaterialsMap.has(matCode)) {
-                                    uniqueMaterialsMap.set(matCode, { ...trx, Count: 1 });
-                                } else {
-                                    uniqueMaterialsMap.get(matCode).Count++;
-                                }
-                            });
-
-                            const distinctMaterials = Array.from(uniqueMaterialsMap.values());
-
-                            // JIKA > 1 MATERIAL BERBEDA -> KANDIDAT
-                            if (distinctMaterials.length > 1) {
-                                
-                                // --- LOGIKA REKOMENDASI BY DATA ---
-                                const nonGenuineItems = distinctMaterials.filter(i => i.GenuineStatus !== "Genuine");
-                                const maxNonGenTransCount = nonGenuineItems.length > 0 
-                                    ? Math.max(...nonGenuineItems.map(i => i.TransCount)) 
-                                    : 0;
-
-                                // Tie-breaker for Non-Genuine
-                                let winnerNonGenuineMaterial = null;
-                                if (maxNonGenTransCount > 0) {
-                                    const topContenders = nonGenuineItems
-                                        .filter(i => i.TransCount === maxNonGenTransCount)
-                                        .sort((a, b) => a.Material.localeCompare(b.Material)); 
-                                    
-                                    if (topContenders.length > 0) {
-                                        winnerNonGenuineMaterial = topContenders[0].Material;
-                                    }
-                                }
-
-                                distinctMaterials.forEach(item => {
-                                    let recommendation = "NOK";
-                                    
-                                    if (item.GenuineStatus === "Genuine") {
-                                        recommendation = "OK";
-                                    } 
-                                    else if (item.Material === winnerNonGenuineMaterial) {
-                                        recommendation = "OK";
-                                    }
-
-                                    finalCandidates.push({
-                                        ...item,
-                                        CandidateReason: `MPN ${mpn} digunakan oleh ${distinctMaterials.length} Material berbeda`,
-                                        DataRecommendation: recommendation 
-                                    });
-                                });
-                            }
-                        });
-
-                        finalCandidates.sort((a, b) => {
-                            if (a.MPN !== b.MPN) return a.MPN.localeCompare(b.MPN);
-                            return a.Material.localeCompare(b.Material);
-                        });
-
-                        setResults(finalCandidates);
-                        setStep(2);
-
-                    } catch (err) {
-                        console.error(err);
-                        setError(err.message || "Terjadi kesalahan saat memproses file.");
-                    } finally {
-                        setIsProcessing(false);
-                        setProgressMsg('');
-                    }
-                }, 500);
-            };
-
-            // --- FUNGSI DOWNLOAD EXCEL ---
-            const handleDownload = () => {
-                if (!results.length) return;
-
-                const exportData = results.map(item => ({
-                    "Material Code": item.Material,
-                    "Material Description": item.Description,
-                    "Genuine / Non": item.GenuineStatus,
-                    "Manufacturer Part No (MPN)": item.MPN,
-                    "Jml Transaksi": item.TransCount, 
-                    "Equipment ID": item.EquipId,
-                    "Brand (Merk)": item.Brand,
-                    "Site": item.Site, 
-                    "Lokasi Site": item.SiteLocation, 
-                    "Status": "Kandidat FF Class",
-                    "Keterangan": item.CandidateReason,
-                    "Rekomendasi By Data": item.DataRecommendation 
-                }));
-
-                const ws = window.XLSX.utils.json_to_sheet(exportData, {
-                    header: [
-                        "Material Code", "Material Description", "Genuine / Non", "Manufacturer Part No (MPN)", 
-                        "Jml Transaksi", "Equipment ID", "Brand (Merk)", "Site", "Lokasi Site", 
-                        "Status", "Keterangan", "Rekomendasi By Data"
-                    ]
-                });
-
-                const merges = [];
-                let startRow = 1; 
-
-                for (let i = 0; i < results.length; i++) {
-                    if (i === results.length - 1 || results[i].MPN !== results[i + 1].MPN) {
-                        const endRow = i + 1;
-                        if (endRow > startRow) {
-                            merges.push({ s: { r: startRow, c: 3 }, e: { r: endRow, c: 3 } }); // MPN
-                            merges.push({ s: { r: startRow, c: 9 }, e: { r: endRow, c: 9 } }); // Status
-                            merges.push({ s: { r: startRow, c: 10 }, e: { r: endRow, c: 10 } }); // Keterangan
-                        }
-                        startRow = endRow + 1;
-                    }
-                }
-
-                ws['!merges'] = merges;
-                const wb = window.XLSX.utils.book_new();
-                window.XLSX.utils.book_append_sheet(wb, ws, "Kandidat FF Class");
-                window.XLSX.writeFile(wb, "Hasil_Analisa_FF_Class.xlsx");
-            };
-
-            const reset = () => {
-                setUsageFiles([]);
-                setAssetFile(null);
-                setResults([]);
-                setStep(1);
-                setError('');
-            };
-
-            const mpnCounts = results.reduce((acc, item) => {
-                acc[item.MPN] = (acc[item.MPN] || 0) + 1;
-                return acc;
-            }, {});
-
-            return (
-                <div className="min-h-screen bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
-                    <div className="max-w-full mx-auto">
-                        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-navy-900 animate-fade-in">
-                            <h1 className="text-2xl font-bold text-navy-900 flex items-center gap-3">
-                                <IconLayers className="w-8 h-8 text-orange-500" />
-                                Aplikasi Analisa FF Class
-                            </h1>
-                            <p className="text-slate-500 mt-2 text-sm">
-                                Mendeteksi potensi Interchangeability Material. Menggunakan Data Brand untuk referensi.
-                            </p>
+                <!-- PENCARIAN KHUSUS LOGISTIK -->
+                <div id="logistikSearchGroup" class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">Material Number</label>
+                    <div class="relative mt-1">
+                        <div class="flex gap-2 items-start">
+                            <!-- Input sebenarnya: Ditambahkan inputmode="numeric" untuk memunculkan Numpad di HP -->
+                            <input type="text" id="materialNumber" name="materialNumber" class="input-field !mt-0 flex-1 font-medium" placeholder="Cth: 123456" inputmode="numeric" required>
+                            <button type="button" id="btnCekStatus" class="bg-slate-100 text-slate-600 px-4 py-3 rounded-xl font-medium hover:bg-slate-200 active:scale-[0.95] transition-all border border-slate-200 shadow-sm flex items-center justify-center min-w-[3.5rem]">
+                                <i class="fas fa-search"></i>
+                            </button>
                         </div>
+                        <!-- Suggestion Box (Dropdown Referensi Otomatis) -->
+                        <div id="suggestionBox" class="hidden absolute z-[60] w-full bg-white border border-slate-200 shadow-xl rounded-xl mt-1 max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1.5" id="logistikSearchHint"><i class="fas fa-info-circle mr-1"></i>Ketik 6 angka terakhir material, lalu pilih dari daftar</p>
+                </div>
 
-                        {step === 1 && (
-                            <div className="grid md:grid-cols-2 gap-6 animate-fade-in"> 
-                                <div className={`relative group bg-white p-8 rounded-2xl shadow-md border-2 border-dashed transition-all duration-300 hover:shadow-xl ${usageFiles.length > 0 ? 'border-orange-400 bg-orange-50' : 'border-slate-300 hover:border-orange-400'}`}>
-                                    <div className="flex flex-col items-center text-center">
-                                        <div className={`p-4 rounded-full mb-4 shadow-sm ${usageFiles.length > 0 ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                                            {usageFiles.length > 0 ? <IconFileText className="w-10 h-10 text-orange-600" /> : <IconFileSpreadsheet className="w-10 h-10 text-slate-500" />}
-                                        </div>
-                                        <h3 className="font-bold text-lg mb-1 text-slate-800">1. Data Pemakaian (MB51)</h3>
-                                        <p className="text-xs text-slate-500 mb-6">Upload file tahun 2019 s/d 2025</p>
-                                        <input 
-                                            type="file" 
-                                            accept=".xlsx, .xls"
-                                            multiple 
-                                            onChange={(e) => setUsageFiles(Array.from(e.target.files))} 
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        />
-                                        <button className={`pointer-events-none px-5 py-2.5 rounded-lg font-medium text-sm transition-all shadow-sm ${usageFiles.length > 0 ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200' : 'bg-slate-100 text-slate-600'}`}>
-                                            {usageFiles.length > 0 ? `${usageFiles.length} File Terpilih` : "Pilih File Excel (Bisa Banyak)"}
-                                        </button>
-                                        {usageFiles.length > 0 && (
-                                            <p className="text-xs text-orange-700 mt-3 max-w-xs truncate font-medium">
-                                                {usageFiles.map(f => f.name).join(', ')}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
+                <!-- Indikator Status Alarm (Tampil untuk Logistik & Plant) -->
+                <div id="statusIndicator" class="hidden mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm"></div>
 
-                                <div className={`relative group bg-white p-8 rounded-2xl shadow-md border-2 border-dashed transition-all duration-300 hover:shadow-xl ${assetFile ? 'border-orange-400 bg-orange-50' : 'border-slate-300 hover:border-orange-400'}`}>
-                                    <div className="flex flex-col items-center text-center">
-                                        <div className={`p-4 rounded-full mb-4 shadow-sm ${assetFile ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                                            <IconFilter className={`w-10 h-10 ${assetFile ? 'text-orange-600' : 'text-slate-500'}`} />
-                                        </div>
-                                        <h3 className="font-bold text-lg mb-1 text-slate-800">2. Brand By Equipment</h3>
-                                        <p className="text-xs text-slate-500 mb-6">Excel (.xlsx/csv)</p>
-                                        <input 
-                                            type="file" 
-                                            accept=".xlsx, .xls, .csv"
-                                            onChange={(e) => setAssetFile(e.target.files[0])}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        />
-                                        <button className={`pointer-events-none px-5 py-2.5 rounded-lg font-medium text-sm transition-all shadow-sm ${assetFile ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200' : 'bg-slate-100 text-slate-600'}`}>
-                                            {assetFile ? assetFile.name : "Pilih File Brand"}
-                                        </button>
-                                    </div>
-                                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">Kategori Alarm <span class="text-xs font-normal text-slate-400 ml-1">(Auto)</span></label>
+                    <input type="text" id="kategoriAlarm" name="kategoriAlarm" class="input-field" readonly placeholder="Menunggu sinkronisasi...">
+                </div>
 
-                                <div className="md:col-span-2 flex flex-col items-center justify-center mt-6">
-                                    {error && (
-                                        <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-lg mb-4 w-full max-w-xl border border-red-100 shadow-sm animate-fade-in">
-                                            <IconAlertCircle className="w-5 h-5 flex-shrink-0" />
-                                            <span className="text-sm font-medium">{error}</span>
-                                        </div>
-                                    )}
-                                    
-                                    <button
-                                        onClick={handleProcess}
-                                        disabled={isProcessing || usageFiles.length === 0 || !assetFile}
-                                        className={`w-full max-w-md py-3.5 px-6 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-3 transform active:scale-95
-                                            ${isProcessing || usageFiles.length === 0 || !assetFile
-                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
-                                                : 'bg-navy-900 text-white hover:bg-navy-800 hover:shadow-xl hover:-translate-y-1'}`}
-                                    >
-                                        {isProcessing ? (
-                                            <>
-                                                <IconLoader2 className="w-5 h-5 animate-spin" />
-                                                <span className="text-base font-normal">{progressMsg || "Sedang Memproses..."}</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                Mulai Analisa
-                                                <IconArrowRight className="w-5 h-5" />
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">Remark Master Data <span class="text-xs font-normal text-slate-400 ml-1">(Auto)</span></label>
+                    <input type="text" id="remarkMaster" name="remarkMaster" class="input-field" readonly placeholder="Menunggu sinkronisasi...">
+                </div>
 
-                        {step === 2 && (
-                            <div className="space-y-6 animate-fade-in">
-                                <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-lg">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-slate-800">Hasil Identifikasi Kandidat</h2>
-                                        <p className="text-slate-500 text-sm mt-1">
-                                            Ditemukan <span className="font-bold text-orange-600">{results.length}</span> baris data.
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button onClick={reset} className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium flex items-center gap-2 transition-colors">
-                                            <IconRefreshCw className="w-4 h-4" /> Ulangi
-                                        </button>
-                                        <button onClick={handleDownload} className="px-5 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:shadow-lg font-medium flex items-center gap-2 shadow-md transition-all hover:-translate-y-0.5">
-                                            <IconDownload className="w-4 h-4" /> Download Excel
-                                        </button>
-                                    </div>
-                                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">MPN (Manufacturer Part Number)</label>
+                    <input type="text" id="mpn" name="mpn" class="input-field" readonly placeholder="Menunggu sinkronisasi...">
+                </div>
 
-                                {results.length === 0 ? (
-                                    <div className="bg-white p-16 rounded-2xl text-center border-2 border-dashed border-slate-300">
-                                        <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <IconCheckCircle className="w-8 h-8 text-emerald-500" />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-slate-800">Tidak Ada Kandidat</h3>
-                                        <p className="text-slate-500 mt-2">Semua MPN memiliki hubungan 1-ke-1 dengan Kode Material (atau Brand tidak terdaftar).</p>
-                                    </div>
-                                ) : (
-                                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-                                        <div className="overflow-x-auto custom-scrollbar">
-                                            <table className="w-full text-left border-collapse">
-                                                <thead className="bg-navy-900 text-white text-[10px] uppercase font-bold tracking-wider">
-                                                    <tr>
-                                                        <th className="p-3 border-r border-navy-800/50">Material Code</th>
-                                                        <th className="p-3 border-r border-navy-800/50">Deskripsi Material</th>
-                                                        <th className="p-3 border-r border-navy-800/50 text-center">Genuine / Non</th>
-                                                        <th className="p-3 border-r border-navy-800/50 bg-orange-600 text-white text-center">Manufacturer Part No (MPN)</th>
-                                                        <th className="p-3 border-r border-navy-800/50 text-center w-20">Jml Transaksi</th>
-                                                        <th className="p-3 border-r border-navy-800/50">Equipment</th>
-                                                        <th className="p-3 border-r border-navy-800/50">Brand (Merk)</th>
-                                                        <th className="p-3 border-r border-navy-800/50 text-center">Site</th>
-                                                        <th className="p-3 border-r border-navy-800/50 text-center">Lokasi Site</th>
-                                                        <th className="p-3 bg-slate-800 text-white text-center w-32">Status</th>
-                                                        <th className="p-3 bg-orange-500 text-white text-center w-32">Rekomendasi</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-200 text-xs">
-                                                    {results.map((item, idx) => {
-                                                        const isFirstInGroup = idx === 0 || item.MPN !== results[idx - 1].MPN;
-                                                        const rowSpan = mpnCounts[item.MPN];
-                                                        
-                                                        return (
-                                                            <tr key={idx} className={`hover:bg-orange-50/50 transition-colors ${isFirstInGroup && idx !== 0 ? 'border-t-4 border-slate-300' : 'border-t border-slate-100'}`}>
-                                                                <td className="p-2 border-r border-slate-100 font-mono text-slate-600 font-semibold align-middle">{item.Material}</td>
-                                                                <td className="p-2 border-r border-slate-100 text-slate-700 align-middle">{item.Description}</td>
-                                                                
-                                                                <td className={`p-2 border-r border-slate-100 text-center font-bold align-middle ${item.GenuineStatus === 'Genuine' ? 'text-navy-600' : 'text-orange-600'}`}>
-                                                                    {item.GenuineStatus}
-                                                                </td>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">Material Description</label>
+                    <textarea id="description" name="description" class="input-field" rows="2" readonly placeholder="Menunggu sinkronisasi..."></textarea>
+                </div>
 
-                                                                {isFirstInGroup && (
-                                                                    <td rowSpan={rowSpan} className="p-2 border-r border-slate-300 font-bold text-orange-600 bg-white align-middle text-center border-b-4 shadow-sm">
-                                                                        {item.MPN}
-                                                                    </td>
-                                                                )}
-                                                                
-                                                                <td className="p-2 border-r border-slate-100 text-center font-semibold text-slate-700 align-middle bg-slate-50/50">
-                                                                    {item.TransCount}
-                                                                </td>
-
-                                                                <td className="p-2 border-r border-slate-100 font-mono text-[10px] text-slate-500 align-middle">{item.EquipId}</td>
-                                                                <td className="p-2 border-r border-slate-100 font-bold text-slate-700 align-middle">{item.Brand}</td>
-                                                                <td className="p-2 border-r border-slate-100 text-slate-600 align-middle text-center">{item.Site}</td>
-                                                                <td className="p-2 border-r border-slate-100 text-slate-600 align-middle text-center font-medium bg-slate-50/30">{item.SiteLocation}</td>
-                                                                
-                                                                {isFirstInGroup && (
-                                                                    <td rowSpan={rowSpan} className="p-2 align-middle text-center bg-white border-b-4 border-slate-300">
-                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-navy-100 text-navy-800 border border-navy-200">
-                                                                            Kandidat FF Class
-                                                                        </span>
-                                                                    </td>
-                                                                )}
-
-                                                                <td className={`p-2 border-r border-slate-100 text-center font-bold align-middle ${item.DataRecommendation === 'OK' ? 'text-white bg-navy-500' : 'text-white bg-red-500'}`}>
-                                                                    {item.DataRecommendation}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700">Brand/Merk</label>
+                        <input type="text" id="brand" name="brand" class="input-field" readonly placeholder="Auto">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700">Model Unit</label>
+                        <input type="text" id="modelUnit" name="modelUnit" class="input-field" readonly placeholder="Auto">
                     </div>
                 </div>
-            );
+
+                <div class="mb-2">
+                    <label class="block text-sm font-semibold text-slate-700">Component</label>
+                    <input type="text" id="component" name="component" class="input-field" placeholder="Masukkan komponen">
+                </div>
+                
+                <div class="mb-2 mt-5 pt-4 border-t border-slate-100">
+                    <label class="block text-sm font-semibold text-slate-700">Data Qty Fisik</label>
+                    <input type="number" id="qty" name="qty" class="input-field font-medium text-lg" placeholder="0" required>
+                </div>
+            </div>
+
+            <!-- Section 2: Pengecekan Fisik (Khusus Plant) -->
+            <div class="form-section" id="sectionFisik">
+                <h2 class="text-sm font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3 uppercase tracking-wide"><i class="fas fa-search-plus text-slate-400 mr-2"></i>Pengecekan Fisik</h2>
+                
+                <!-- Camera Input -->
+                <div class="mb-5">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Dokumentasi Fisik <span class="text-red-500">*</span></label>
+                    <div class="flex items-center justify-center w-full">
+                        <label for="fotoFisik" class="flex flex-col items-center justify-center w-full h-40 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors relative overflow-hidden group" id="dropArea">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6" id="uploadPlaceholder">
+                                <div class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                                    <i class="fas fa-camera text-xl text-slate-400"></i>
+                                </div>
+                                <p class="text-sm text-slate-600 font-medium">Buka Kamera Bawaan</p>
+                            </div>
+                            <img id="imagePreview" class="hidden absolute inset-0 w-full h-full object-cover" alt="Preview Foto">
+                            <input id="fotoFisik" type="file" accept="image/*" capture="environment" class="hidden" />
+                        </label>
+                    </div>
+                    <div class="flex justify-between items-center mt-2">
+                        <p class="text-[11px] text-slate-400 font-medium">Format: JPG/PNG</p>
+                        <button type="button" id="retakeBtn" class="hidden text-xs text-slate-600 font-bold bg-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-300 active:scale-[0.95] transition-all"><i class="fas fa-redo-alt mr-1.5"></i>Ulangi Foto</button>
+                    </div>
+                    <!-- Hidden field to store base64 image -->
+                    <input type="hidden" id="fotoBase64" name="fotoBase64">
+                </div>
+
+                <!-- Panel Display Qty khusus untuk Tim Plant -->
+                <div class="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-xl flex justify-between items-center shadow-sm">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold text-blue-500 uppercase tracking-wider"><i class="fas fa-info-circle mr-1"></i>Info dari Logistik</span>
+                        <span class="text-sm font-semibold text-blue-900 mt-0.5">Data Qty Fisik</span>
+                    </div>
+                    <span id="displayQtyPlant" class="text-2xl font-bold text-blue-700">-</span>
+                </div>
+
+                <div class="mb-5">
+                    <label class="block text-sm font-semibold text-slate-700 mb-3">Kelayakan Pakai</label>
+                    <label class="radio-card">
+                        <input type="radio" name="kelayakan" value="Masih 100% Bagus" required>
+                        <span class="text-sm font-medium text-slate-700 mt-0.5">Masih 100% Bagus</span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="kelayakan" value="Bisa Dipakai Jika Dipoles/Dibersihkan">
+                        <span class="text-sm font-medium text-slate-700 mt-0.5">Bisa Dipakai Jika Dipoles/Dibersihkan</span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="kelayakan" value="Rusak [Bahaya Jika Dipasang]">
+                        <span class="text-sm font-medium text-red-600 mt-0.5">Rusak [Bahaya Jika Dipasang]</span>
+                    </label>
+                </div>
+
+                <div class="mb-2">
+                    <label class="block text-sm font-semibold text-slate-700">Keterangan Tambahan</label>
+                    <textarea name="keterangan" class="input-field" rows="3" placeholder="Tulis catatan atau temuan khusus..."></textarea>
+                </div>
+            </div>
+
+            <!-- Section 3: Analisa & Keputusan (Khusus Plant) -->
+            <div class="form-section" id="sectionKeputusan">
+                <h2 class="text-sm font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3 uppercase tracking-wide"><i class="fas fa-layer-group text-slate-400 mr-2"></i>Analisa & Keputusan</h2>
+                
+                <div class="mb-5 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <h3 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Potensi Interchange</h3>
+                    
+                    <!-- Pilihan Ya/Tidak -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">Ada Potensi Interchange?</label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="adaPotensi" value="Ya" class="w-4 h-4 text-slate-900" onchange="togglePotensi(true)">
+                                <span class="text-sm font-medium text-slate-700">Ya</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="adaPotensi" value="Tidak" class="w-4 h-4 text-slate-900" onchange="togglePotensi(false)" checked>
+                                <span class="text-sm font-medium text-slate-700">Tidak</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Potensi Tersembunyi (Akan terbuka jika Ya) -->
+                    <div id="potensiFields" class="hidden mt-4 pt-4 border-t border-slate-200">
+                        <div class="mb-3">
+                            <label class="block text-xs font-semibold text-slate-700">Bisa Subtitusi ke unit</label>
+                            <input type="text" id="subtitusiUnit" name="subtitusiUnit" class="input-field !py-2 !text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700">PN Interchange</label>
+                            <input type="text" id="pnInterchange" name="pnInterchange" class="input-field !py-2 !text-sm bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="block text-sm font-semibold text-slate-700 mb-3">Keputusan Final <span class="text-red-500">*</span></label>
+                    <label class="radio-card">
+                        <input type="radio" name="keputusan" value="USE (Utilisasi Internal) Genuine" required>
+                        <span class="text-sm font-medium text-slate-700 mt-0.5">USE <span class="text-slate-400 font-normal text-xs ml-1">(Utilisasi Internal) Genuine</span></span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="keputusan" value="INTERCHANGE (Simpan)">
+                        <span class="text-sm font-medium text-slate-700 mt-0.5">INTERCHANGE <span class="text-slate-400 font-normal text-xs ml-1">(Simpan)</span></span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="keputusan" value="SELL / RETURN (Jual/Retur)">
+                        <span class="text-sm font-medium text-slate-700 mt-0.5">SELL / RETURN <span class="text-slate-400 font-normal text-xs ml-1">(Jual/Retur)</span></span>
+                    </label>
+                    <label class="radio-card !mb-0">
+                        <input type="radio" name="keputusan" value="SCRAP / WRITE-OFF (Pemusnahan)">
+                        <span class="text-sm font-bold text-red-600 mt-0.5">SCRAP / WRITE-OFF <span class="text-red-400 font-normal text-xs ml-1">(Pemusnahan)</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="mt-8 mb-10">
+                <button type="submit" id="submitBtn" class="w-full bg-slate-900 hover:bg-slate-800 active:bg-black active:scale-[0.98] text-white font-bold py-4 px-4 rounded-xl shadow-xl shadow-slate-900/20 flex justify-center items-center transition-all transform hover:-translate-y-0.5">
+                    <i class="fas fa-cloud-upload-alt mr-2 text-lg"></i> Submit Data Inspeksi
+                </button>
+            </div>
+        </form>
+    </main>
+
+    <!-- Overlay Loading -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-80 z-[150] hidden flex-col justify-center items-center text-white backdrop-blur-sm">
+        <i class="fas fa-circle-notch fa-spin text-5xl mb-5 text-slate-300"></i>
+        <p class="font-bold text-xl tracking-tight">Sinkronisasi Data</p>
+        <p class="text-sm text-slate-400 mt-1 font-medium">Menyimpan ke sistem *Cloud*...</p>
+    </div>
+
+    <!-- Modal Success (Auto-Closing / Non-blocking) -->
+    <div id="successModal" class="fixed inset-0 bg-slate-900 bg-opacity-70 z-[150] hidden flex justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl transform scale-100 transition-transform">
+            <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-5 border-[6px] border-green-100">
+                <i class="fas fa-check text-4xl text-green-500"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800 mb-2 tracking-tight">Inspeksi Berhasil</h3>
+            <p class="text-slate-500 text-sm leading-relaxed">Data material dan dokumentasi telah tersimpan.<br><span class="font-semibold text-slate-700">Formulir berikutnya langsung terbuka...</span></p>
+        </div>
+    </div>
+
+    <script>
+        // --- KONFIGURASI PENTING ---
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2GXCsDBKWUZQBdfkaeGaI7DtTAlUmkujONcTcwM55difm09WOxQ3CflZR4u8t4S4j8g/exec'; 
+        const CSV_MASTER_DATA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXkfxuvVUJ6MNUjsXzqDCg5AkxBCA2ekx2O_ZtvvytcvGRR8AZqjBSU89ae2dLtc1u-8f7OwB1PJTf/pub?gid=0&single=true&output=csv';
+        const CSV_ANTREAN_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRkpwdJk6lxy8BCBqhiUOUNcE6Hdaotgn91eGwpplVZ37aTmvUKbMEYS6CELvugNhv7QNN-_I3a4Xo/pub?gid=0&single=true&output=csv';
+        // ---------------------------
+
+        // UI TOAST NOTIFICATION UTILITY (Menggantikan alert browser untuk visual halus & tanpa lag)
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toastNotification');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            toastMsg.textContent = message;
+            
+            // Atur icon & warna berdasarkan tipe notifikasi
+            toastIcon.className = 'fas';
+            if (type === 'error') {
+                toastIcon.classList.add('fa-exclamation-circle', 'text-red-500');
+            } else if (type === 'success') {
+                toastIcon.classList.add('fa-check-circle', 'text-emerald-400');
+            } else {
+                toastIcon.classList.add('fa-info-circle', 'text-blue-400');
+            }
+            
+            // Jalankan animasi slide down lembut
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.style.transform = 'translate(-50%, 10px)';
+            toast.classList.add('opacity-100');
+            
+            // Sembunyikan otomatis dalam 3.5 detik
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.style.transform = 'translate(-50%, -10px)';
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3500);
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // PROMISE-BASED FETCH CSV (Supaya proses pengambilan data master stabil & tidak membekukan browser)
+        function loadCSV(url) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: false,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        resolve(results.data);
+                    },
+                    error: function(err) {
+                        reject(err);
+                    }
+                });
+            });
+        }
+
+        // FUNGSI KOMPRESI FOTO (Memperkecil payload Base64 agar pengiriman 10x lipat lebih cepat)
+        function compressImage(file, maxWidth, maxHeight, quality) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round((width * maxHeight) / height);
+                                height = maxHeight;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Output format JPEG yang sangat terkompresi dan ringan
+                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        const base64 = dataUrl.split(',')[1];
+                        resolve(base64);
+                    };
+                    img.onerror = function(err) {
+                        reject(err);
+                    };
+                };
+                reader.onerror = function(err) {
+                    reject(err);
+                };
+            });
+        }
+
+        // Handle Login 
+        const loginScreen = document.getElementById('loginScreen');
+        const loginPicName = document.getElementById('loginPicName');
+        const loginPassword = document.getElementById('loginPassword');
+        const btnLogin = document.getElementById('btnLogin');
+        const loginError = document.getElementById('loginError');
+        const loginErrorMsg = document.getElementById('loginErrorMsg');
+        const appHeader = document.getElementById('appHeader');
+        const mainApp = document.getElementById('mainApp');
+        const roleBadge = document.getElementById('roleBadge');
+        
+        const sectionIdentitas = document.getElementById('sectionIdentitas');
+        const sectionFisik = document.getElementById('sectionFisik');
+        const sectionKeputusan = document.getElementById('sectionKeputusan');
+
+        let currentUserRole = '';
+        let currentPicName = '';
+
+        function attemptLogin() {
+            const pic = loginPicName.value.trim();
+            const pwd = loginPassword.value;
+
+            if (!pic) {
+                loginErrorMsg.textContent = "Mohon isi Nama PIC terlebih dahulu";
+                loginError.classList.remove('hidden');
+                loginPicName.classList.add('translate-x-1');
+                setTimeout(() => loginPicName.classList.remove('translate-x-1'), 100);
+                return;
+            }
+
+            if (pwd === 'SPDS2026') {
+                currentUserRole = 'Logistik';
+                currentPicName = pic;
+                setupRoleUI(currentUserRole);
+            } else if (pwd === '1234') {
+                currentUserRole = 'Plant';
+                currentPicName = pic;
+                setupRoleUI(currentUserRole);
+            } else {
+                loginErrorMsg.textContent = "Kredensial tidak valid";
+                loginError.classList.remove('hidden');
+                loginPassword.classList.add('translate-x-1');
+                setTimeout(() => loginPassword.classList.remove('translate-x-1'), 100);
+            }
+        }
+
+        btnLogin.addEventListener('click', attemptLogin);
+        loginPicName.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loginPassword.focus();
+        });
+        loginPassword.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') attemptLogin();
+        });
+
+        // Tombol Back to Akses (Logout)
+        document.getElementById('btnLogout').addEventListener('click', function() {
+            mainApp.classList.add('hidden');
+            appHeader.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            document.getElementById('loginPassword').value = ''; // Hapus password
+            form.reset();
+            document.getElementById('statusIndicator').classList.add('hidden');
+        });
+
+        // Fungsi Toggle Potensi Interchange
+        function togglePotensi(isYa) {
+            const fields = document.getElementById('potensiFields');
+            const subUnit = document.getElementById('subtitusiUnit');
+            const pnInter = document.getElementById('pnInterchange');
+            if (isYa) {
+                fields.classList.remove('hidden');
+                if (currentUserRole === 'Plant') {
+                    subUnit.setAttribute('required', 'true');
+                    pnInter.setAttribute('required', 'true');
+                }
+            } else {
+                fields.classList.add('hidden');
+                subUnit.removeAttribute('required');
+                pnInter.removeAttribute('required');
+                subUnit.value = '';
+                pnInter.value = '';
+            }
+        }
+
+        function setupRoleUI(role) {
+            loginScreen.classList.add('hidden');
+            appHeader.classList.remove('hidden');
+            mainApp.classList.remove('hidden');
+            roleBadge.textContent = role;
+
+            const inputMatNumber = document.getElementById('materialNumber');
+            const selectPending = document.getElementById('pendingMaterialSelect');
+            const inputComponent = document.getElementById('component');
+            const inputQty = document.getElementById('qty');
+
+            if (role === 'Logistik') {
+                sectionIdentitas.classList.remove('hidden');
+                sectionFisik.classList.add('hidden');
+                sectionKeputusan.classList.add('hidden');
+                
+                document.getElementById('logistikSearchGroup').classList.remove('hidden');
+                document.getElementById('plantDropdownGroup').classList.add('hidden');
+                
+                inputMatNumber.setAttribute('required', 'true');
+                selectPending.removeAttribute('required');
+
+                // Komponen bisa diisi oleh Logistik
+                inputComponent.removeAttribute('readonly');
+                inputComponent.classList.remove('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+                
+                // Qty bisa diisi oleh Logistik dan WAJIB diisi
+                inputQty.removeAttribute('readonly');
+                inputQty.classList.remove('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+                inputQty.setAttribute('required', 'true');
+
+                // Bebaskan validasi form bawah agar submit berhasil
+                document.querySelectorAll('#sectionFisik input, #sectionFisik textarea, #sectionKeputusan input').forEach(el => el.removeAttribute('required'));
+                document.getElementById('subtitusiUnit').removeAttribute('required');
+                document.getElementById('pnInterchange').removeAttribute('required');
+            
+            } else if (role === 'Plant') {
+                // Tampilkan Identitas (tapi Readonly) + Tampilkan Form Plant
+                sectionIdentitas.classList.remove('hidden');
+                sectionFisik.classList.remove('hidden');
+                sectionKeputusan.classList.remove('hidden');
+                
+                // Sembunyikan pencarian manual logistik, tampilkan Dropdown Plant
+                document.getElementById('logistikSearchGroup').classList.add('hidden');
+                document.getElementById('plantDropdownGroup').classList.remove('hidden');
+                
+                inputMatNumber.removeAttribute('required'); // materialNumber diisi via dropdown
+                selectPending.setAttribute('required', 'true');
+
+                // Kunci form komponen karena sudah diisi logistik
+                inputComponent.setAttribute('readonly', 'true');
+                inputComponent.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+                
+                // Kunci form Qty karena sudah diisi logistik dan hilangkan required agar tidak menghalangi Plant
+                inputQty.setAttribute('readonly', 'true');
+                inputQty.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+                inputQty.removeAttribute('required');
+
+                // Kembalikan requirement untuk radio button di Plant (berjaga-jaga jika reset)
+                document.querySelector('input[name="kelayakan"][value="Masih 100% Bagus"]').setAttribute('required', 'true');
+                document.querySelector('input[name="keputusan"][value="USE (Utilisasi Internal) Genuine"]').setAttribute('required', 'true');
+
+                // Cek status Potensi Interchange untuk menerapkan mandatory/hidden
+                const isPotensiYa = document.querySelector('input[name="adaPotensi"]:checked').value === 'Ya';
+                togglePotensi(isPotensiYa);
+
+                // Ambil data antrean Logistik
+                fetchPendingMaterials();
+            }
+        }
+
+        // Handle Tombol Sync Manual (Khusus Plant)
+        document.getElementById('btnSyncAntrean').addEventListener('click', async function() {
+            const icon = this.querySelector('i');
+            icon.classList.add('fa-spin'); // Tambahkan efek putar
+            
+            // Panggil ulang penarikan data antrean dari Spreadsheet
+            await fetchPendingMaterials();
+            
+            // Hentikan efek putar
+            setTimeout(() => icon.classList.remove('fa-spin'), 500);
+        });
+
+        // FUNGSI PENGAMBILAN DATA PENDING (ANTREAN LOGISTIK UNTUK PLANT)
+        async function fetchPendingMaterials() {
+            const select = document.getElementById('pendingMaterialSelect');
+            select.innerHTML = '<option value="">-- Mengambil antrean inspeksi... --</option>';
+            
+            try {
+                // Menambahkan timestamp pada URL untuk Bypass Cache browser (memastikan data terupdate langsung masuk tanpa delay)
+                const cacheBusterUrl = CSV_ANTREAN_URL + '&t=' + new Date().getTime();
+                const data = await loadCSV(cacheBusterUrl);
+                const pendingList = [];
+                
+                // Mulai dari i=1 untuk melewati header
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    // Col C: Material Number (Indeks 2), Col I: Foto Fisik (Indeks 8)
+                    const materialNumber = row[2] ? row[2].trim() : '';
+                    const fotoFisik = row[8] ? row[8].trim() : '';
+                    
+                    // Logika: Jika Material Number terisi DAN Foto Fisik masih blank -> Masuk Antrean
+                    if (materialNumber !== '' && fotoFisik === '') {
+                        pendingList.push({
+                            materialNumber: materialNumber,
+                            mpn: row[3] ? row[3].trim() : '',              // Col D
+                            description: row[4] ? row[4].trim() : '',      // Col E
+                            brand: row[5] ? row[5].trim() : '',            // Col F
+                            modelUnit: row[6] ? row[6].trim() : '',        // Col G
+                            component: row[7] ? row[7].trim() : '',        // Col H
+                            qty: row[10] ? row[10].trim() : '',            // Col K (Data Qty Fisik)
+                            kategoriAlarm: row[21] ? row[21].trim() : '',  // Col V (Alarm)
+                            remarkMaster: '' 
+                        });
+                    }
+                }
+                
+                processPendingData({ status: 'success', data: pendingList });
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                select.innerHTML = '<option value="">-- Gagal memuat antrean (Pastikan Sheet dipublish) --</option>';
+                showToast("Koneksi antrean terganggu. Coba tekan Sync ulang.", "error");
+            }
+        }
+
+        function processPendingData(result) {
+            const select = document.getElementById('pendingMaterialSelect');
+            if (result.status === 'success' && result.data && result.data.length > 0) {
+                select.innerHTML = '<option value="">-- Pilih Material yang Belum Diinspeksi --</option>';
+                window.pendingDataMap = {}; 
+                
+                result.data.forEach(item => {
+                    window.pendingDataMap[item.materialNumber] = item;
+                    const option = document.createElement('option');
+                    option.value = item.materialNumber;
+                    option.textContent = `${item.materialNumber} - ${item.description.substring(0, 40)}`;
+                    select.appendChild(option);
+                });
+            } else {
+                select.innerHTML = '<option value="">-- Tidak ada antrean inspeksi --</option>';
+            }
+        }
+
+        // Handle Pemilihan dari Dropdown Plant
+        document.getElementById('pendingMaterialSelect').addEventListener('change', function(e) {
+            const matNum = e.target.value;
+            const statusIndicator = document.getElementById('statusIndicator');
+            
+            if (matNum && window.pendingDataMap && window.pendingDataMap[matNum]) {
+                const data = window.pendingDataMap[matNum];
+                
+                document.getElementById('materialNumber').value = data.materialNumber;
+                document.getElementById('description').value = data.description || '';
+                document.getElementById('mpn').value = data.mpn || '';
+                document.getElementById('brand').value = data.brand || '';
+                document.getElementById('modelUnit').value = data.modelUnit || '';
+                document.getElementById('kategoriAlarm').value = data.kategoriAlarm || '';
+                document.getElementById('remarkMaster').value = data.remarkMaster || '';
+                document.getElementById('component').value = data.component || '';
+                document.getElementById('qty').value = data.qty || '';
+                
+                // Update angka besar di panel display Qty khusus Plant
+                document.getElementById('displayQtyPlant').textContent = data.qty || '0';
+                
+                // Tampilkan Status Indikator Alarm Visual
+                statusIndicator.classList.remove('hidden');
+                const statusValue = data.kategoriAlarm || '';
+                const statusUpper = statusValue.toUpperCase();
+                
+                if (statusUpper.includes('DEAD STOCK') || statusUpper.includes('BEBAN')) {
+                    statusIndicator.innerHTML = "<i class='fas fa-exclamation-triangle mr-1.5'></i> " + statusValue;
+                    statusIndicator.className = 'mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm bg-red-50 text-red-700 border-red-200';
+                } else if (statusUpper.includes('EVALUASI') || statusUpper.includes('STOP')) {
+                    statusIndicator.innerHTML = "<i class='fas fa-minus-circle mr-1.5'></i> " + statusValue;
+                    statusIndicator.className = 'mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm bg-amber-50 text-amber-700 border-amber-200';
+                } else if (statusUpper.includes('PRIORITAS') || statusUpper.includes('KETERSEDIAAN')) {
+                    statusIndicator.innerHTML = "<i class='fas fa-check-circle mr-1.5'></i> " + statusValue;
+                    statusIndicator.className = 'mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200';
+                } else if (statusValue !== "") {
+                    statusIndicator.innerHTML = "<i class='fas fa-info-circle mr-1.5'></i> " + statusValue;
+                    statusIndicator.className = 'mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm bg-blue-50 text-blue-700 border-blue-200';
+                } else {
+                    statusIndicator.innerHTML = "<i class='fas fa-check-circle mr-1.5'></i> Data Identitas Dimuat dari Logistik";
+                    statusIndicator.className = 'mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200';
+                }
+            } else {
+                // Reset form jika dropdown tidak dipilih
+                document.getElementById('materialNumber').value = '';
+                document.getElementById('description').value = '';
+                document.getElementById('mpn').value = '';
+                document.getElementById('brand').value = '';
+                document.getElementById('modelUnit').value = '';
+                document.getElementById('kategoriAlarm').value = '';
+                document.getElementById('remarkMaster').value = '';
+                document.getElementById('component').value = '';
+                document.getElementById('qty').value = '';
+                document.getElementById('displayQtyPlant').textContent = '-';
+                statusIndicator.classList.add('hidden');
+            }
+        });
+
+        // ----------------------------------------------------
+        // LOGIKA PENARIKAN DATA MASTER (KHUSUS LOGISTIK)
+        // ----------------------------------------------------
+        const btnCekStatus = document.getElementById('btnCekStatus');
+        const materialNumberInput = document.getElementById('materialNumber');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const suggestionBox = document.getElementById('suggestionBox');
+        
+        let cachedMasterData = null; 
+
+        // PRE-LOAD DATA: Mengunduh data CSV ke memori saat input diklik agar pencarian angka langsung muncul
+        materialNumberInput.addEventListener('focus', async function() {
+            if (!cachedMasterData) {
+                try {
+                    cachedMasterData = await loadCSV(CSV_MASTER_DATA_URL);
+                } catch (error) {
+                    console.warn("Pre-load data master tertunda karena koneksi.");
+                }
+            }
+        });
+
+        // AUTO-SUGGEST: Logika memunculkan referensi saat mengetik 6 angka
+        materialNumberInput.addEventListener('input', function(e) {
+            const val = this.value.trim().toUpperCase();
+            suggestionBox.innerHTML = '';
+            
+            if (!val || !cachedMasterData) {
+                suggestionBox.classList.add('hidden');
+                return;
+            }
+
+            // Filter data yang mengandung angka yang sedang diketik user
+            const matches = cachedMasterData.filter(row => {
+                const matNum = row[0] ? row[0].toString().trim().toUpperCase() : '';
+                return matNum.includes(val); 
+            }).slice(0, 15); // Tampilkan maksimal 15 pilihan referensi
+
+            if (matches.length > 0) {
+                matches.forEach(match => {
+                    const matNum = match[0].toString().trim();
+                    const desc = match[1] ? match[1].toString().trim() : '';
+                    
+                    const div = document.createElement('div');
+                    div.className = 'p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors';
+                    div.innerHTML = `<div class="font-bold text-sm text-slate-800">${matNum}</div><div class="text-xs text-slate-500 truncate">${desc}</div>`;
+                    
+                    // Aksi saat user memilih referensi material dari daftar
+                    div.addEventListener('click', function() {
+                        materialNumberInput.value = matNum;
+                        suggestionBox.classList.add('hidden');
+                        btnCekStatus.click(); // Otomatis jalankan pencarian (tarik informasi)
+                    });
+                    
+                    suggestionBox.appendChild(div);
+                });
+                suggestionBox.classList.remove('hidden');
+            } else {
+                suggestionBox.classList.add('hidden');
+            }
+        });
+
+        // Menyembunyikan Dropdown jika klik di luar area
+        document.addEventListener('click', function(e) {
+            if (materialNumberInput && suggestionBox && !materialNumberInput.contains(e.target) && !suggestionBox.contains(e.target)) {
+                suggestionBox.classList.add('hidden');
+            }
+        });
+
+        materialNumberInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                suggestionBox.classList.add('hidden');
+                btnCekStatus.click();
+            }
+        });
+
+        btnCekStatus.addEventListener('click', async function() {
+            const matNum = materialNumberInput.value.trim().toUpperCase(); // Logistik cari huruf besar
+            if (!matNum) {
+                showToast('Mohon isi Material Number terlebih dahulu.', 'error');
+                return;
+            }
+
+            btnCekStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin text-slate-500"></i>';
+            btnCekStatus.disabled = true;
+            statusIndicator.classList.add('hidden');
+            statusIndicator.className = 'hidden mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm';
+
+            try {
+                let dataToSearch = null;
+
+                if (cachedMasterData) {
+                    dataToSearch = cachedMasterData;
+                } else {
+                    cachedMasterData = await loadCSV(CSV_MASTER_DATA_URL);
+                    dataToSearch = cachedMasterData;
+                }
+
+                if (dataToSearch) {
+                    let foundRowArray = null;
+
+                    for (let i = 0; i < dataToSearch.length; i++) {
+                        const row = dataToSearch[i];
+                        const rowMaterialNumber = row[0] ? row[0].toString().trim().toUpperCase() : '';
+                        
+                        if (rowMaterialNumber === matNum) {
+                            foundRowArray = row;
+                            break; 
+                        }
+                    }
+
+                    statusIndicator.classList.remove('hidden');
+                    
+                    if (foundRowArray) {
+                        document.getElementById('description').value = foundRowArray[1] ? foundRowArray[1].trim() : '';
+                        document.getElementById('mpn').value = foundRowArray[2] ? foundRowArray[2].trim() : '';
+                        document.getElementById('brand').value = foundRowArray[4] ? foundRowArray[4].trim() : '';
+                        document.getElementById('modelUnit').value = foundRowArray[5] ? foundRowArray[5].trim() : '';
+                        
+                        const statusValue = foundRowArray[3] ? foundRowArray[3].trim() : '';
+                        document.getElementById('kategoriAlarm').value = statusValue; 
+                        document.getElementById('remarkMaster').value = ''; 
+
+                        const statusUpper = statusValue.toUpperCase();
+                        if (statusUpper.includes('DEAD STOCK') || statusUpper.includes('BEBAN')) {
+                            statusIndicator.innerHTML = "<i class='fas fa-exclamation-triangle mr-1.5'></i> " + statusValue;
+                            statusIndicator.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
+                        } else if (statusUpper.includes('EVALUASI') || statusUpper.includes('STOP')) {
+                            statusIndicator.innerHTML = "<i class='fas fa-minus-circle mr-1.5'></i> " + statusValue;
+                            statusIndicator.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-200');
+                        } else if (statusUpper.includes('PRIORITAS') || statusUpper.includes('KETERSEDIAAN')) {
+                            statusIndicator.innerHTML = "<i class='fas fa-check-circle mr-1.5'></i> " + statusValue;
+                            statusIndicator.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+                        } else if (statusValue !== "") {
+                            statusIndicator.innerHTML = "<i class='fas fa-info-circle mr-1.5'></i> " + statusValue;
+                            statusIndicator.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
+                        } else {
+                            statusIndicator.innerHTML = "<i class='fas fa-question-circle mr-1.5'></i> Kategori Alarm Kosong";
+                            statusIndicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-300');
+                        }
+                    } else {
+                        statusIndicator.innerHTML = "<i class='fas fa-times-circle mr-1.5'></i> Material tidak ditemukan di Master Data";
+                        statusIndicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-300');
+                        
+                        document.getElementById('description').value = '';
+                        document.getElementById('mpn').value = '';
+                        document.getElementById('brand').value = '';
+                        document.getElementById('modelUnit').value = '';
+                        document.getElementById('kategoriAlarm').value = '';
+                        document.getElementById('remarkMaster').value = '';
+                    }
+                }
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                showToast("Gagal mengunduh Master Data. Coba lagi beberapa saat.", "error");
+            } finally {
+                btnCekStatus.innerHTML = '<i class="fas fa-search"></i>';
+                btnCekStatus.disabled = false;
+            }
+        });
+
+        // Set default date to today
+        document.getElementById('tanggal').valueAsDate = new Date();
+
+        // Handle Camera Image Capture & Preview
+        const fotoInput = document.getElementById('fotoFisik');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const fotoBase64Input = document.getElementById('fotoBase64');
+        const retakeBtn = document.getElementById('retakeBtn');
+
+        fotoInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // OPTIMASI MEMORI: Hapus URL Object lama dari memory jika ada sebelum mempreview foto baru
+                if (imagePreview.src && imagePreview.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(imagePreview.src);
+                }
+
+                imagePreview.src = URL.createObjectURL(file);
+                imagePreview.classList.remove('hidden');
+                uploadPlaceholder.classList.add('hidden');
+                retakeBtn.classList.remove('hidden');
+
+                // Jalankan proses kompresi asinkron di background secara instan
+                try {
+                    // Kompresi foto ke dimensi rasional max 1024px dengan kualitas tajam namun super ringan (0.7)
+                    // Hasil kompresi berkisar antara 100KB - 200KB (bukan 5MB-10MB lagi)
+                    const compressedBase64 = await compressImage(file, 1024, 1024, 0.7);
+                    fotoBase64Input.value = compressedBase64;
+                } catch (err) {
+                    console.error("Kompresi gagal, menggunakan fallback default reader:", err);
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const base64String = reader.result.split(',')[1];
+                        fotoBase64Input.value = base64String;
+                    }
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+
+        retakeBtn.addEventListener('click', function() {
+            // OPTIMASI MEMORI: Bebaskan memori blob image lama
+            if (imagePreview.src && imagePreview.src.startsWith('blob:')) {
+                URL.revokeObjectURL(imagePreview.src);
+            }
+
+            fotoInput.value = '';
+            fotoBase64Input.value = '';
+            imagePreview.classList.add('hidden');
+            uploadPlaceholder.classList.remove('hidden');
+            retakeBtn.classList.add('hidden');
+            fotoInput.click();
+        });
+
+        // Handle Form Submission
+        const form = document.getElementById('inspeksiForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const successModal = document.getElementById('successModal');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Validasi Ganda (Toast menggantikan Alert)
+            if (currentUserRole === 'Plant' && !fotoBase64Input.value) {
+                showToast("Mohon ambil Dokumentasi Fisik (Foto) terlebih dahulu.", "error");
+                return;
+            }
+
+            // Validasi Ganda: Cegah Logistik submit jika Qty Fisik kosong
+            if (currentUserRole === 'Logistik' && !document.getElementById('qty').value) {
+                showToast("Mohon isi Data Qty Fisik terlebih dahulu.", "error");
+                return;
+            }
+
+            if(GOOGLE_SCRIPT_URL.includes('XXXXXXXXXXXX')) {
+                showToast("Sistem belum siap: URL Google Apps Script belum dikonfigurasi.", "error");
+                return;
+            }
+
+            loadingOverlay.classList.replace('hidden', 'flex');
+
+            const formData = new FormData(form);
+            const dataObj = {};
+            formData.forEach((value, key) => {
+                dataObj[key] = value;
+            });
+
+            const payload = {
+                tanggal: dataObj.tanggal,
+                materialNumber: dataObj.materialNumber,
+                mpn: dataObj.mpn,
+                description: dataObj.description,
+                brand: dataObj.brand,
+                modelUnit: dataObj.modelUnit,
+                component: dataObj.component,
+                fotoBase64: dataObj.fotoBase64, 
+                qty: dataObj.qty,
+                kelayakan: dataObj.kelayakan,
+                keterangan: dataObj.keterangan,
+                subtitusiUnit: dataObj.subtitusiUnit,
+                pnInterchange: dataObj.pnInterchange,
+                keputusan: dataObj.keputusan,
+                kategoriAlarm: dataObj.kategoriAlarm,
+                remarkMaster: dataObj.remarkMaster,
+                pelaksana: currentUserRole === 'Logistik' ? currentPicName : '',
+                timTeknis: currentUserRole === 'Plant' ? currentPicName : ''
+            };
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                loadingOverlay.classList.replace('flex', 'hidden');
+                
+                // Tampilkan pop-up keterangan sukses (auto-closing modal)
+                successModal.classList.remove('hidden');
+                
+                // OPTIMASI RAM: Bebaskan memory object blob preview gambar sebelum reset
+                if (imagePreview.src && imagePreview.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(imagePreview.src);
+                }
+
+                // Reset form langsung agar formulir selanjutnya langsung terbuka secara instan
+                form.reset();
+                document.getElementById('tanggal').valueAsDate = new Date();
+                imagePreview.classList.add('hidden');
+                uploadPlaceholder.classList.remove('hidden');
+                retakeBtn.classList.add('hidden');
+                document.getElementById('statusIndicator').classList.add('hidden');
+                
+                // Kembalikan form potensi ke keadaan default (hidden) jika reset
+                togglePotensi(false);
+                
+                if (currentUserRole === 'Plant') {
+                    fetchPendingMaterials(); // Refresh antrean dropdown
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // Tutup otomatis pop-up sukses setelah 2 detik
+                setTimeout(() => {
+                    successModal.classList.add('hidden');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error!', error.message);
+                loadingOverlay.classList.replace('flex', 'hidden');
+                showToast("Gagal mengirim data. Periksa kembali koneksi internet Anda.", "error");
+            }
+        });
     </script>
 </body>
 </html>
