@@ -204,10 +204,26 @@
                     <input type="text" id="component" name="component" class="input-field" placeholder="Masukkan komponen">
                 </div>
 
-                <!-- KOLOM BARU: BIN Location (Sebelum Data Qty Fisik) -->
+                <!-- KOLOM BIN Location Dengan Fitur Dropdown SOH DC & Custom Manual Switcher -->
                 <div class="mb-2">
                     <label class="block text-sm font-semibold text-slate-700">BIN Location</label>
-                    <input type="text" id="binLocation" name="binLocation" class="input-field font-medium" placeholder="Masukkan Lokasi BIN">
+                    
+                    <!-- Dropdown BIN dinamis SOH DC -->
+                    <div id="binSelectContainer" class="hidden mt-1.5">
+                        <select id="binSelect" class="input-field font-medium !mt-0 bg-white">
+                            <!-- Diisi dinamis lewat Javascript -->
+                        </select>
+                    </div>
+
+                    <!-- Input Manual BIN (Tampil default, atau jika pilih Lainnya) -->
+                    <div id="binManualContainer" class="relative mt-1.5">
+                        <input type="text" id="binLocationInput" class="input-field font-medium !mt-0" placeholder="Masukkan Lokasi BIN" autocomplete="off">
+                        <!-- BIN Suggestion Box -->
+                        <div id="binSuggestionBox" class="hidden absolute z-[60] w-full bg-white border border-slate-200 shadow-xl rounded-xl mt-1 max-h-48 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Hidden Input utama yang sesungguhnya disubmit ke Google Sheet -->
+                    <input type="hidden" id="binLocation" name="binLocation">
                 </div>
                 
                 <div class="mb-2 mt-5 pt-4 border-t border-slate-100">
@@ -362,6 +378,9 @@
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2GXCsDBKWUZQBdfkaeGaI7DtTAlUmkujONcTcwM55difm09WOxQ3CflZR4u8t4S4j8g/exec'; 
         const CSV_MASTER_DATA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXkfxuvVUJ6MNUjsXzqDCg5AkxBCA2ekx2O_ZtvvytcvGRR8AZqjBSU89ae2dLtc1u-8f7OwB1PJTf/pub?gid=0&single=true&output=csv';
         const CSV_ANTREAN_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRkpwdJk6lxy8BCBqhiUOUNcE6Hdaotgn91eGwpplVZ37aTmvUKbMEYS6CELvugNhv7QNN-_I3a4Xo/pub?gid=0&single=true&output=csv';
+        
+        // URL Spreadsheet SOH DC untuk menarik data "Storage Bin"
+        const CSV_SOH_DC_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXkfxuvVUJ6MNUjsXzqDCg5AkxBCA2ekx2O_ZtvvytcvGRR8AZqjBSU89ae2dLtc1u-8f7OwB1PJTf/pub?gid=1942297497&single=true&output=csv';
         // ---------------------------
 
         // PENYARING LOKAL: Menyimpan nomor material yang sudah disubmit dalam sesi ini agar langsung tersembunyi
@@ -522,6 +541,7 @@
             document.getElementById('loginPassword').value = ''; // Hapus password
             form.reset();
             document.getElementById('statusIndicator').classList.add('hidden');
+            resetBinLocationUI();
         });
 
         // Fungsi Toggle Potensi Interchange
@@ -544,6 +564,15 @@
             }
         }
 
+        // RESET SELURUH UI DAN INPUTAN BERKAITAN DENGAN BIN LOCATION
+        function resetBinLocationUI() {
+            document.getElementById('binSelectContainer').classList.add('hidden');
+            document.getElementById('binManualContainer').classList.remove('hidden');
+            document.getElementById('binSelect').innerHTML = '';
+            document.getElementById('binLocationInput').value = '';
+            document.getElementById('binLocation').value = '';
+        }
+
         function setupRoleUI(role) {
             loginScreen.classList.add('hidden');
             appHeader.classList.remove('hidden');
@@ -553,8 +582,10 @@
             const inputMatNumber = document.getElementById('materialNumber');
             const selectPending = document.getElementById('pendingMaterialSelect');
             const inputComponent = document.getElementById('component');
-            const inputBinLocation = document.getElementById('binLocation');
+            const inputBinLocation = document.getElementById('binLocationInput');
             const inputQty = document.getElementById('qty');
+
+            resetBinLocationUI();
 
             if (role === 'Logistik') {
                 sectionIdentitas.classList.remove('hidden');
@@ -663,9 +694,9 @@
                             brand: row[5] ? row[5].trim() : '',            // Col F
                             modelUnit: row[6] ? row[6].trim() : '',        // Col G
                             component: row[7] ? row[7].trim() : '',        // Col H
-                            binLocation: row[9] ? row[9].trim() : '',      // Col J (BIN Location)
+                            binLocation: row[21] ? row[21].trim() : '',    // Col V (BIN Asal)
                             qty: row[10] ? row[10].trim() : '',            // Col K (Data Qty Fisik)
-                            kategoriAlarm: row[21] ? row[21].trim() : '',  // Col V (Alarm)
+                            kategoriAlarm: row[22] ? row[22].trim() : '',  // Col W (Alarm)
                             remarkMaster: '' 
                         });
                     }
@@ -714,7 +745,11 @@
                 document.getElementById('kategoriAlarm').value = data.kategoriAlarm || '';
                 document.getElementById('remarkMaster').value = data.remarkMaster || '';
                 document.getElementById('component').value = data.component || '';
+                
+                // Pada view Plant, isi BIN Location ke manual input (karena readonly)
                 document.getElementById('binLocation').value = data.binLocation || '';
+                document.getElementById('binLocationInput').value = data.binLocation || '';
+                
                 document.getElementById('qty').value = data.qty || '';
                 
                 // Update angka besar di panel display Qty khusus Plant
@@ -752,6 +787,7 @@
                 document.getElementById('remarkMaster').value = '';
                 document.getElementById('component').value = '';
                 document.getElementById('binLocation').value = '';
+                document.getElementById('binLocationInput').value = '';
                 document.getElementById('qty').value = '';
                 document.getElementById('displayQtyPlant').textContent = '-';
                 statusIndicator.classList.add('hidden');
@@ -881,6 +917,18 @@
                         document.getElementById('kategoriAlarm').value = statusValue; 
                         document.getElementById('remarkMaster').value = ''; 
 
+                        // Pre-load data SOH DC jika belum dimuat
+                        if (!cachedSohDcData) {
+                            try {
+                                cachedSohDcData = await loadCSV(CSV_SOH_DC_URL);
+                            } catch (e) {
+                                console.warn("Gagal memuat SOH DC:", e);
+                            }
+                        }
+
+                        // AMBIL DAN TATA DROP DOWN PILIHAN BIN BERDASARKAN MATERIAL YANG DIPILIH
+                        updateBinLocationOptions(matNum);
+
                         const statusUpper = statusValue.toUpperCase();
                         if (statusUpper.includes('DEAD STOCK') || statusUpper.includes('BEBAN')) {
                             statusIndicator.innerHTML = "<i class='fas fa-exclamation-triangle mr-1.5'></i> " + statusValue;
@@ -908,6 +956,7 @@
                         document.getElementById('modelUnit').value = '';
                         document.getElementById('kategoriAlarm').value = '';
                         document.getElementById('remarkMaster').value = '';
+                        resetBinLocationUI();
                     }
                 }
 
@@ -917,6 +966,142 @@
             } finally {
                 btnCekStatus.innerHTML = '<i class="fas fa-search"></i>';
                 btnCekStatus.disabled = false;
+            }
+        });
+
+        // ----------------------------------------------------
+        // LOGIKA AUTO-SUGGEST STORAGE BIN (SOH DC)
+        // ----------------------------------------------------
+        const binLocationInput = document.getElementById('binLocationInput');
+        const binSuggestionBox = document.getElementById('binSuggestionBox');
+        const binLocationHidden = document.getElementById('binLocation');
+        const binSelect = document.getElementById('binSelect');
+        let cachedSohDcData = null;
+
+        // Pre-load data SOH DC ketika input BIN Location mendapatkan fokus
+        binLocationInput.addEventListener('focus', async function() {
+            if (!cachedSohDcData) {
+                try {
+                    cachedSohDcData = await loadCSV(CSV_SOH_DC_URL);
+                } catch (error) {
+                    console.warn("Pre-load data SOH DC tertunda.");
+                }
+            }
+        });
+
+        // Menyaring rekomendasi BIN Location secara real-time saat diketik
+        binLocationInput.addEventListener('input', function() {
+            const val = this.value.trim().toUpperCase();
+            binSuggestionBox.innerHTML = '';
+            
+            if (!val || !cachedSohDcData) {
+                binSuggestionBox.classList.add('hidden');
+                return;
+            }
+
+            // Dapatkan Storage Bin (Index 8) yang unik dan cocok dengan inputan user
+            const bins = new Set();
+            for (let i = 1; i < cachedSohDcData.length; i++) {
+                const row = cachedSohDcData[i];
+                const storageBin = row[8] ? row[8].toString().trim() : '';
+                if (storageBin.toUpperCase().includes(val)) {
+                    bins.add(storageBin);
+                }
+                if (bins.size >= 15) break; // Batasi maksimal 15 rekomendasi untuk performa enteng
+            }
+
+            if (bins.size > 0) {
+                bins.forEach(bin => {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors text-sm font-semibold text-slate-800';
+                    div.textContent = bin;
+                    
+                    div.addEventListener('click', function() {
+                        binLocationInput.value = bin;
+                        binLocationHidden.value = bin; // SINKRONKAN VALUE KE HIDDEN FIELD
+                        binSuggestionBox.classList.add('hidden');
+                    });
+                    
+                    binSuggestionBox.appendChild(div);
+                });
+                binSuggestionBox.classList.remove('hidden');
+            } else {
+                binSuggestionBox.classList.add('hidden');
+            }
+        });
+
+        // Menyembunyikan Dropdown jika klik di luar area BIN
+        document.addEventListener('click', function(e) {
+            if (binLocationInput && binSuggestionBox && !binLocationInput.contains(e.target) && !binSuggestionBox.contains(e.target)) {
+                binSuggestionBox.classList.add('hidden');
+            }
+        });
+
+        // UPDATE DROP DOWN & MANUAL SWITCHER BERDASARKAN HASIL SEARCHING MATERIAL
+        function updateBinLocationOptions(matNum) {
+            const binSelectContainer = document.getElementById('binSelectContainer');
+            const binManualContainer = document.getElementById('binManualContainer');
+
+            binSelect.innerHTML = '';
+            
+            let foundBins = [];
+            if (cachedSohDcData) {
+                const cleanMatNum = matNum.trim().toUpperCase();
+                for (let j = 1; j < cachedSohDcData.length; j++) {
+                    const sohRow = cachedSohDcData[j];
+                    const sohMaterial = sohRow[0] ? sohRow[0].toString().trim().toUpperCase() : '';
+                    if (sohMaterial === cleanMatNum) {
+                        const binVal = sohRow[8] ? sohRow[8].toString().trim() : '';
+                        if (binVal && !foundBins.includes(binVal)) {
+                            foundBins.push(binVal);
+                        }
+                    }
+                }
+            }
+
+            if (foundBins.length > 0) {
+                // Ada BIN terdaftar di SOH DC -> Tampilkan Dropdown
+                binSelectContainer.classList.remove('hidden');
+                
+                binSelect.innerHTML = '<option value="">-- Pilih BIN Location --</option>';
+                foundBins.forEach(bin => {
+                    const opt = document.createElement('option');
+                    opt.value = bin;
+                    opt.textContent = bin;
+                    binSelect.appendChild(opt);
+                });
+                
+                // Tambahkan opsi "Lainnya" untuk input manual
+                const optLainnya = document.createElement('option');
+                optLainnya.value = '__LAINNYA__';
+                optLainnya.textContent = 'Lainnya (Ketik Manual)';
+                binSelect.appendChild(optLainnya);
+
+                // Default: dropdown tampil, input manual disembunyikan sampai "Lainnya" diklik
+                binManualContainer.classList.add('hidden');
+                binLocationInput.value = '';
+                binLocationHidden.value = '';
+            } else {
+                // Tidak ada BIN terdaftar -> Langsung tampilkan kolom ketik manual
+                binSelectContainer.classList.add('hidden');
+                binManualContainer.classList.remove('hidden');
+                binLocationInput.value = '';
+                binLocationHidden.value = '';
+            }
+        }
+
+        // Listener ketika dropdown BIN dipilih
+        binSelect.addEventListener('change', function() {
+            const val = this.value;
+            const binManualContainer = document.getElementById('binManualContainer');
+            if (val === '__LAINNYA__') {
+                binManualContainer.classList.remove('hidden');
+                binLocationInput.value = '';
+                binLocationHidden.value = '';
+                binLocationInput.focus();
+            } else {
+                binManualContainer.classList.add('hidden');
+                binLocationHidden.value = val;
             }
         });
 
@@ -1065,6 +1250,7 @@
                 
                 // Kembalikan form potensi ke keadaan default (hidden) jika reset
                 togglePotensi(false);
+                resetBinLocationUI();
                 
                 if (currentUserRole === 'Plant') {
                     // Tarik ulang antrean. Fungsi ini sekarang menyaring locallySubmittedMaterials,
