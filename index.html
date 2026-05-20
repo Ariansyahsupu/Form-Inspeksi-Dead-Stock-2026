@@ -150,11 +150,11 @@
 
                 <!-- PENCARIAN KHUSUS LOGISTIK -->
                 <div id="logistikSearchGroup" class="mb-4">
-                    <label class="block text-sm font-semibold text-slate-700">Material Number</label>
+                    <label class="block text-sm font-semibold text-slate-700">Material Number / MPN</label>
                     <div class="relative mt-1">
                         <div class="flex gap-2 items-start">
-                            <!-- Input sebenarnya: Ditambahkan inputmode="numeric" untuk memunculkan Numpad di HP -->
-                            <input type="text" id="materialNumber" name="materialNumber" class="input-field !mt-0 flex-1 font-medium" placeholder="Cth: 123456" inputmode="numeric" required>
+                            <!-- Input sebenarnya: Dihilangkan inputmode numeric karena MPN bisa berisi huruf -->
+                            <input type="text" id="materialNumber" name="materialNumber" class="input-field !mt-0 flex-1 font-medium" placeholder="Cth: 123456 atau MPN" required>
                             <button type="button" id="btnCekStatus" class="bg-slate-100 text-slate-600 px-4 py-3 rounded-xl font-medium hover:bg-slate-200 active:scale-[0.95] transition-all border border-slate-200 shadow-sm flex items-center justify-center min-w-[3.5rem]">
                                 <i class="fas fa-search"></i>
                             </button>
@@ -162,7 +162,13 @@
                         <!-- Suggestion Box (Dropdown Referensi Otomatis) -->
                         <div id="suggestionBox" class="hidden absolute z-[60] w-full bg-white border border-slate-200 shadow-xl rounded-xl mt-1 max-h-48 overflow-y-auto"></div>
                     </div>
-                    <p class="text-xs text-slate-400 mt-1.5" id="logistikSearchHint"><i class="fas fa-info-circle mr-1"></i>Ketik 6 angka terakhir material, lalu pilih dari daftar</p>
+                    <p class="text-xs text-slate-400 mt-1.5" id="logistikSearchHint"><i class="fas fa-info-circle mr-1"></i>Ketik Material atau MPN, lalu pilih dari daftar</p>
+                </div>
+
+                <!-- Banner Informasi Mode Revisi (Logistik) -->
+                <div id="revisiModeBadge" class="hidden mb-4 p-3 rounded-xl text-xs font-bold text-center border shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200 flex justify-between items-center">
+                    <span><i class="fas fa-edit mr-1.5"></i> Mode: Merevisi Qty/BIN Data Terinput Sebelumnya</span>
+                    <button type="button" id="btnResetMode" class="text-[10px] bg-indigo-200 hover:bg-indigo-300 text-indigo-800 px-2.5 py-1 rounded-md font-bold transition-colors">Batal Revisi</button>
                 </div>
 
                 <!-- Indikator Status Alarm (Tampil untuk Logistik & Plant) -->
@@ -355,6 +361,36 @@
         </form>
     </main>
 
+    <!-- Modal Peringatan Duplikasi / Pilihan Revisi Qty (Logistik) -->
+    <div id="duplicateModal" class="fixed inset-0 bg-slate-900 bg-opacity-70 z-[160] hidden flex justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl transform scale-100 transition-all">
+            <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-[6px] border-amber-100">
+                <i class="fas fa-exclamation-triangle text-2xl text-amber-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 text-center mb-2 tracking-tight">Material Sudah Terinput</h3>
+            <p class="text-slate-500 text-xs text-center leading-relaxed mb-5">
+                Material <span id="dupMaterialCode" class="font-bold text-slate-800"></span> terdeteksi sudah pernah Anda input sebelumnya di spreadsheet dengan rincian berikut:
+                <span class="block mt-2.5 text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl text-slate-700 text-left font-mono space-y-1">
+                    <span>• Qty Fisik Terinput: <span id="dupQty" class="font-bold text-slate-900"></span></span><br>
+                    <span>• BIN Lokasi Asal: <span id="dupBin" class="font-bold text-slate-900"></span></span><br>
+                    <span>• Komponen: <span id="dupComponent" class="font-bold text-slate-900"></span></span>
+                </span>
+                <span class="block mt-4 text-sm text-slate-600 font-medium">Apakah Anda ingin merevisi Qty dari data yang sudah ada, atau menginput baris baru di BIN/Lokasi yang berbeda?</span>
+            </p>
+            <div class="grid grid-cols-1 gap-2">
+                <button type="button" id="btnModeRevisi" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all text-xs flex justify-center items-center">
+                    <i class="fas fa-edit mr-2 text-sm"></i> Revisi Data Qty / BIN Lama
+                </button>
+                <button type="button" id="btnModeBaru" class="w-full bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 font-bold py-3 px-4 rounded-xl transition-all text-xs flex justify-center items-center">
+                    <i class="fas fa-plus mr-2 text-sm"></i> Tetap Input Sebagai Baris Baru
+                </button>
+                <button type="button" id="btnCancelDuplicate" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 px-4 rounded-xl transition-all text-xs">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Overlay Loading -->
     <div id="loadingOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-80 z-[150] hidden flex-col justify-center items-center text-white backdrop-blur-sm">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-5 text-slate-300"></i>
@@ -385,6 +421,9 @@
 
         // PENYARING LOKAL: Menyimpan nomor material yang sudah disubmit dalam sesi ini agar langsung tersembunyi
         const locallySubmittedMaterials = new Set();
+        
+        // Variabel penentu mode pengiriman Logistik ('baru' atau 'revisi')
+        window.submitMode = 'baru';
 
         // UI TOAST NOTIFICATION UTILITY (Menggantikan alert browser untuk visual halus & tanpa lag)
         function showToast(message, type = 'info') {
@@ -571,6 +610,8 @@
             document.getElementById('binSelect').innerHTML = '';
             document.getElementById('binLocationInput').value = '';
             document.getElementById('binLocation').value = '';
+            window.submitMode = 'baru';
+            document.getElementById('revisiModeBadge').classList.add('hidden');
         }
 
         function setupRoleUI(role) {
@@ -799,7 +840,6 @@
         // ----------------------------------------------------
         const btnCekStatus = document.getElementById('btnCekStatus');
         const materialNumberInput = document.getElementById('materialNumber');
-        const statusIndicator = document.getElementById('statusIndicator');
         const suggestionBox = document.getElementById('suggestionBox');
         
         let cachedMasterData = null; 
@@ -815,7 +855,7 @@
             }
         });
 
-        // AUTO-SUGGEST: Logika memunculkan referensi saat mengetik 6 angka
+        // AUTO-SUGGEST: Logika memunculkan referensi saat mengetik
         materialNumberInput.addEventListener('input', function(e) {
             const val = this.value.trim().toUpperCase();
             suggestionBox.innerHTML = '';
@@ -825,24 +865,32 @@
                 return;
             }
 
-            // Filter data yang mengandung angka yang sedang diketik user
+            // Filter data yang mengandung angka/huruf yang sedang diketik user (Berdasarkan Material atau MPN)
             const matches = cachedMasterData.filter(row => {
                 const matNum = row[0] ? row[0].toString().trim().toUpperCase() : '';
-                return matNum.includes(val); 
+                const mpnVal = row[2] ? row[2].toString().trim().toUpperCase() : '';
+                return matNum.includes(val) || mpnVal.includes(val); 
             }).slice(0, 15); // Tampilkan maksimal 15 pilihan referensi
 
             if (matches.length > 0) {
                 matches.forEach(match => {
                     const matNum = match[0].toString().trim();
                     const desc = match[1] ? match[1].toString().trim() : '';
+                    const mpnVal = match[2] ? match[2].toString().trim() : '';
                     
                     const div = document.createElement('div');
                     div.className = 'p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors';
-                    div.innerHTML = `<div class="font-bold text-sm text-slate-800">${matNum}</div><div class="text-xs text-slate-500 truncate">${desc}</div>`;
+                    
+                    let titleHtml = `<span class="font-bold text-sm text-slate-800">${matNum}</span>`;
+                    if (mpnVal) {
+                        titleHtml += ` <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded ml-1 border border-indigo-100">MPN: ${mpnVal}</span>`;
+                    }
+                    
+                    div.innerHTML = `<div class="flex items-center flex-wrap gap-1 mb-0.5">${titleHtml}</div><div class="text-xs text-slate-500 truncate">${desc}</div>`;
                     
                     // Aksi saat user memilih referensi material dari daftar
                     div.addEventListener('click', function() {
-                        materialNumberInput.value = matNum;
+                        materialNumberInput.value = matNum; // Selalu kembalikan ke Material Number aslinya
                         suggestionBox.classList.add('hidden');
                         btnCekStatus.click(); // Otomatis jalankan pencarian (tarik informasi)
                     });
@@ -871,9 +919,10 @@
         });
 
         btnCekStatus.addEventListener('click', async function() {
-            const matNum = materialNumberInput.value.trim().toUpperCase(); // Logistik cari huruf besar
-            if (!matNum) {
-                showToast('Mohon isi Material Number terlebih dahulu.', 'error');
+            const inputVal = materialNumberInput.value.trim().toUpperCase(); // Logistik cari huruf besar
+            const statusIndicator = document.getElementById('statusIndicator');
+            if (!inputVal) {
+                showToast('Mohon isi Material Number atau MPN terlebih dahulu.', 'error');
                 return;
             }
 
@@ -898,8 +947,9 @@
                     for (let i = 0; i < dataToSearch.length; i++) {
                         const row = dataToSearch[i];
                         const rowMaterialNumber = row[0] ? row[0].toString().trim().toUpperCase() : '';
+                        const rowMpn = row[2] ? row[2].toString().trim().toUpperCase() : '';
                         
-                        if (rowMaterialNumber === matNum) {
+                        if (rowMaterialNumber === inputVal || (rowMpn !== '' && rowMpn === inputVal)) {
                             foundRowArray = row;
                             break; 
                         }
@@ -908,6 +958,11 @@
                     statusIndicator.classList.remove('hidden');
                     
                     if (foundRowArray) {
+                        const actualMatNum = foundRowArray[0] ? foundRowArray[0].toString().trim() : '';
+                        
+                        // Paksa input field menjadi Material Number sejati (meskipun user ngetik/cari pakai MPN exact match)
+                        materialNumberInput.value = actualMatNum;
+                        
                         document.getElementById('description').value = foundRowArray[1] ? foundRowArray[1].trim() : '';
                         document.getElementById('mpn').value = foundRowArray[2] ? foundRowArray[2].trim() : '';
                         document.getElementById('brand').value = foundRowArray[4] ? foundRowArray[4].trim() : '';
@@ -927,7 +982,10 @@
                         }
 
                         // AMBIL DAN TATA DROP DOWN PILIHAN BIN BERDASARKAN MATERIAL YANG DIPILIH
-                        updateBinLocationOptions(matNum);
+                        updateBinLocationOptions(actualMatNum);
+
+                        // CEK APAKAH MATERIAL SUDAH PERNAH DI-SUBMIT DI SPREADSHEET (ANTREAN / HASIL INPUTAN)
+                        await checkDuplicateInInspections(actualMatNum);
 
                         const statusUpper = statusValue.toUpperCase();
                         if (statusUpper.includes('DEAD STOCK') || statusUpper.includes('BEBAN')) {
@@ -967,6 +1025,132 @@
                 btnCekStatus.innerHTML = '<i class="fas fa-search"></i>';
                 btnCekStatus.disabled = false;
             }
+        });
+
+        // FUNGSI MEMERIKSA DUPLIKASI DATA MATERIAL YANG PERNAH DISUBMIT OLEH LOGISTIK
+        async function checkDuplicateInInspections(matNum) {
+            if (currentUserRole !== 'Logistik') return; // Hanya berjalan pada panel Logistik
+            
+            try {
+                // Tarik data antrean real-time
+                const cacheBusterUrl = CSV_ANTREAN_URL + '&t=' + new Date().getTime();
+                const data = await loadCSV(cacheBusterUrl);
+                
+                let duplicateRow = null;
+                // Scan dari baris paling bawah untuk mengambil riwayat inputan terakhir
+                for (let i = data.length - 1; i >= 1; i--) {
+                    const row = data[i];
+                    // Col C (Indeks 2): Material Number
+                    const rowMatNum = row[2] ? row[2].toString().trim().toUpperCase() : '';
+                    if (rowMatNum === matNum) {
+                        duplicateRow = {
+                            rowIndex: i + 1,
+                            qty: row[10] ? row[10].toString().trim() : '0',      // Col K (Qty)
+                            bin: row[21] ? row[21].toString().trim() : '',       // Col V (BIN Asal)
+                            component: row[7] ? row[7].toString().trim() : ''    // Col H (Component)
+                        };
+                        break;
+                    }
+                }
+
+                if (duplicateRow) {
+                    // Isi data rincian di modal
+                    document.getElementById('dupMaterialCode').textContent = matNum;
+                    document.getElementById('dupQty').textContent = duplicateRow.qty;
+                    document.getElementById('dupBin').textContent = duplicateRow.bin || 'Tidak ada';
+                    document.getElementById('dupComponent').textContent = duplicateRow.component || 'Tidak ada';
+                    
+                    // Simpan objek data sementara di memori window
+                    window.currentDuplicateData = duplicateRow;
+                    
+                    // Munculkan Modal Duplikasi
+                    document.getElementById('duplicateModal').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.warn("Gagal memproses validasi duplikasi:", err);
+            }
+        }
+
+        // TATA CARA MEMILIH/PILIH ULANG BIN LOCATION SECARA OTOMATIS
+        function fillBinLocationInForm(binVal) {
+            const binSelect = document.getElementById('binSelect');
+            const binSelectContainer = document.getElementById('binSelectContainer');
+            const binManualContainer = document.getElementById('binManualContainer');
+            const binLocationInput = document.getElementById('binLocationInput');
+            const binLocationHidden = document.getElementById('binLocation');
+
+            if (!binSelectContainer.classList.contains('hidden') && binSelect.options.length > 0) {
+                let found = false;
+                for (let i = 0; i < binSelect.options.length; i++) {
+                    if (binSelect.options[i].value === binVal) {
+                        binSelect.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    binManualContainer.classList.add('hidden');
+                    binLocationHidden.value = binVal;
+                } else {
+                    binSelect.value = '__LAINNYA__';
+                    binManualContainer.classList.remove('hidden');
+                    binLocationInput.value = binVal;
+                    binLocationHidden.value = binVal;
+                }
+            } else {
+                binSelectContainer.classList.add('hidden');
+                binManualContainer.classList.remove('hidden');
+                binLocationInput.value = binVal;
+                binLocationHidden.value = binVal;
+            }
+        }
+
+        // --- BUTTON ACTION HANDLERS PADA MODAL DUPLIKASI ---
+        
+        // Pilihan 1: Aktifkan Mode Revisi (Timpa Baris Lama)
+        document.getElementById('btnModeRevisi').addEventListener('click', function() {
+            if (window.currentDuplicateData) {
+                window.submitMode = 'revisi';
+                
+                // Isi otomatis form dengan data lama yang sudah terdaftar
+                document.getElementById('qty').value = window.currentDuplicateData.qty;
+                document.getElementById('component').value = window.currentDuplicateData.component;
+                fillBinLocationInForm(window.currentDuplicateData.bin);
+                
+                // Tampilkan banner indikator mode revisi
+                document.getElementById('revisiModeBadge').classList.remove('hidden');
+                document.getElementById('duplicateModal').classList.add('hidden');
+                
+                showToast("Mode revisi data aktif. Silakan lakukan perubahan Qty/BIN.", "info");
+            }
+        });
+
+        // Pilihan 2: Tetap Input Baris Baru (BIN yang berbeda)
+        document.getElementById('btnModeBaru').addEventListener('click', function() {
+            window.submitMode = 'baru';
+            document.getElementById('revisiModeBadge').classList.add('hidden');
+            document.getElementById('duplicateModal').classList.add('hidden');
+            showToast("Melanjutkan sebagai input baris baru di lokasi berbeda.", "info");
+        });
+
+        // Pilihan 3: Batal Pengisian
+        document.getElementById('btnCancelDuplicate').addEventListener('click', function() {
+            const formObj = document.getElementById('inspeksiForm');
+            formObj.reset();
+            resetBinLocationUI();
+            document.getElementById('duplicateModal').classList.add('hidden');
+            document.getElementById('statusIndicator').classList.add('hidden');
+            showToast("Pengisian material dibatalkan.", "info");
+        });
+
+        // Batal revisi lewat banner badge
+        document.getElementById('btnResetMode').addEventListener('click', function() {
+            window.submitMode = 'baru';
+            document.getElementById('revisiModeBadge').classList.add('hidden');
+            document.getElementById('qty').value = '';
+            document.getElementById('component').value = '';
+            resetBinLocationUI();
+            showToast("Mode revisi dibatalkan. Kembali ke input baru.", "info");
         });
 
         // ----------------------------------------------------
@@ -1161,11 +1345,11 @@
         });
 
         // Handle Form Submission
-        const form = document.getElementById('inspeksiForm');
+        const formObj = document.getElementById('inspeksiForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const successModal = document.getElementById('successModal');
 
-        form.addEventListener('submit', async function(e) {
+        formObj.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             // Validasi Ganda (Toast menggantikan Alert)
@@ -1187,12 +1371,13 @@
 
             loadingOverlay.classList.replace('hidden', 'flex');
 
-            const formData = new FormData(form);
+            const formData = new FormData(formObj);
             const dataObj = {};
             formData.forEach((value, key) => {
                 dataObj[key] = value;
             });
 
+            // Kirim parameter submitMode ('baru' / 'revisi') ke Google Apps Script
             const payload = {
                 tanggal: dataObj.tanggal,
                 materialNumber: dataObj.materialNumber,
@@ -1211,6 +1396,7 @@
                 keputusan: dataObj.keputusan,
                 kategoriAlarm: dataObj.kategoriAlarm,
                 remarkMaster: dataObj.remarkMaster,
+                submitMode: window.submitMode || 'baru',
                 pelaksana: currentUserRole === 'Logistik' ? currentPicName : '',
                 timTeknis: currentUserRole === 'Plant' ? currentPicName : ''
             };
@@ -1227,8 +1413,8 @@
 
                 loadingOverlay.classList.replace('flex', 'hidden');
                 
-                // Tambahkan nomor material yang baru saja disubmit ke penyaring lokal
-                if (dataObj.materialNumber) {
+                // Tambahkan nomor material yang baru saja disubmit ke penyaring lokal jika bukan mode revisi
+                if (dataObj.materialNumber && window.submitMode !== 'revisi') {
                     locallySubmittedMaterials.add(dataObj.materialNumber.trim());
                 }
 
@@ -1241,7 +1427,7 @@
                 }
 
                 // Reset form langsung agar formulir selanjutnya langsung terbuka secara instan
-                form.reset();
+                formObj.reset();
                 document.getElementById('tanggal').valueAsDate = new Date();
                 imagePreview.classList.add('hidden');
                 uploadPlaceholder.classList.remove('hidden');
