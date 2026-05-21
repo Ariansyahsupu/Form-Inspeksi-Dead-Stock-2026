@@ -236,6 +236,18 @@
                     <label class="block text-sm font-semibold text-slate-700">Data Qty Fisik</label>
                     <input type="number" id="qty" name="qty" class="input-field font-medium text-lg" placeholder="0" required>
                 </div>
+
+                <!-- Tambahan Field Price & Value -->
+                <div class="grid grid-cols-2 gap-4 mb-2 mt-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700">Price <span class="text-xs font-normal text-slate-400 ml-1">(Auto MM60)</span></label>
+                        <input type="text" id="price" name="price" class="input-field font-medium bg-slate-100 text-slate-500" readonly placeholder="Lookup...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700">Value <span class="text-xs font-normal text-slate-400 ml-1">(Qty x Price)</span></label>
+                        <input type="text" id="totalValue" class="input-field font-medium bg-indigo-50 text-indigo-700" readonly placeholder="0">
+                    </div>
+                </div>
             </div>
 
             <!-- Section 2: Pengecekan Fisik (Khusus Plant) -->
@@ -417,6 +429,9 @@
         
         // URL Spreadsheet SOH DC untuk menarik data "Storage Bin"
         const CSV_SOH_DC_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRXkfxuvVUJ6MNUjsXzqDCg5AkxBCA2ekx2O_ZtvvytcvGRR8AZqjBSU89ae2dLtc1u-8f7OwB1PJTf/pub?gid=1942297497&single=true&output=csv';
+        
+        // URL Spreadsheet Master Price MM60
+        const CSV_PRICE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRkpwdJk6lxy8BCBqhiUOUNcE6Hdaotgn91eGwpplVZ37aTmvUKbMEYS6CELvugNhv7QNN-_I3a4Xo/pub?gid=1559249556&single=true&output=csv';
         // ---------------------------
 
         // PENYARING LOKAL: Menyimpan nomor material yang sudah disubmit dalam sesi ini agar langsung tersembunyi
@@ -738,7 +753,8 @@
                             binLocation: row[21] ? row[21].trim() : '',    // Col V (BIN Asal)
                             qty: row[10] ? row[10].trim() : '',            // Col K (Data Qty Fisik)
                             kategoriAlarm: row[22] ? row[22].trim() : '',  // Col W (Alarm)
-                            remarkMaster: '' 
+                            remarkMaster: '', 
+                            price: row[25] ? row[25].trim() : ''           // Col Z (Price)
                         });
                     }
                 }
@@ -792,6 +808,9 @@
                 document.getElementById('binLocationInput').value = data.binLocation || '';
                 
                 document.getElementById('qty').value = data.qty || '';
+                document.getElementById('price').value = data.price || '';
+                
+                if (typeof calculateValue === 'function') calculateValue(); // Update Total Value UI
                 
                 // Update angka besar di panel display Qty khusus Plant
                 document.getElementById('displayQtyPlant').textContent = data.qty || '0';
@@ -830,6 +849,7 @@
                 document.getElementById('binLocation').value = '';
                 document.getElementById('binLocationInput').value = '';
                 document.getElementById('qty').value = '';
+                document.getElementById('price').value = '';
                 document.getElementById('displayQtyPlant').textContent = '-';
                 statusIndicator.classList.add('hidden');
             }
@@ -918,15 +938,39 @@
             }
         });
 
+        // FUNGSI KALKULASI VALUE OTOMATIS DI HTML
+        function calculateValue() {
+            const qty = parseFloat(document.getElementById('qty').value) || 0;
+            let priceStr = document.getElementById('price').value.toString();
+            
+            let price = 0;
+            if (priceStr) {
+                // Cek format harga. Jika format US (contoh: 1,500.00)
+                if (priceStr.includes('.') && priceStr.lastIndexOf('.') > priceStr.lastIndexOf(',')) {
+                    price = parseFloat(priceStr.replace(/,/g, ''));
+                } else {
+                    // Format IDR/Eropa (contoh: 1.500,00 atau 1500)
+                    price = parseFloat(priceStr.replace(/\./g, '').replace(',', '.'));
+                }
+            }
+            if (isNaN(price)) price = 0;
+
+            const valueField = document.getElementById('totalValue');
+            
+            if (qty > 0 && price > 0) {
+                valueField.value = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(qty * price);
+            } else {
+                valueField.value = '';
+            }
+        }
+        document.getElementById('qty').addEventListener('input', calculateValue);
+
+        let cachedPriceData = null; // Deklarasi Global untuk Price agar tidak ter-reset
+
         btnCekStatus.addEventListener('click', async function() {
             const inputVal = materialNumberInput.value.trim().toUpperCase(); // Logistik cari huruf besar
             const statusIndicator = document.getElementById('statusIndicator');
-            if (!inputVal) {
-                showToast('Mohon isi Material Number atau MPN terlebih dahulu.', 'error');
-                return;
-            }
-
-            btnCekStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin text-slate-500"></i>';
+            
             btnCekStatus.disabled = true;
             statusIndicator.classList.add('hidden');
             statusIndicator.className = 'hidden mb-4 p-3 rounded-lg text-sm font-bold text-center border shadow-sm';
@@ -981,6 +1025,67 @@
                             }
                         }
 
+                        // Pre-load data Price MM60 jika belum dimuat
+                        if (!cachedPriceData) {
+                            try {
+                                cachedPriceData = await loadCSV(CSV_PRICE_URL);
+                            } catch (e) {
+                                console.warn("Gagal memuat Price Data:", e);
+                            }
+                        }
+
+                        // Lookup Price berdasarkan material
+                        let foundPrice = '0'; // Default 0 jika tidak ada
+                        if (cachedPriceData && cachedPriceData.length > 0) {
+                            // Cari Index Kolom Dinamis berdasarkan Header di Baris 1 (Antisipasi Pergeseran Kolom CSV)
+                            let matIdx = 1; // Default Col B
+                            let priceIdx = 9; // Default Col J
+                            const headers = cachedPriceData[0];
+                            for (let c = 0; c < headers.length; c++) {
+                                const hText = headers[c] ? headers[c].toString().trim().toUpperCase() : '';
+                                if (hText === 'MATERIAL') matIdx = c;
+                                if (hText === 'PRICE') priceIdx = c;
+                            }
+
+                            // Pastikan penghapusan angka 0 di depan aman (fallback ke nilai asli jika hasilnya kosong)
+                            const searchMatNum = actualMatNum.toString().trim().toUpperCase();
+                            const searchMatClean = searchMatNum.replace(/^0+/, '') || searchMatNum;
+
+                            for (let k = 1; k < cachedPriceData.length; k++) {
+                                const pRow = cachedPriceData[k];
+                                if (!pRow) continue;
+                                
+                                // Cek menggunakan index dinamis, plus fallback Col A & B
+                                const pMatNumDyn = pRow[matIdx] ? pRow[matIdx].toString().trim().toUpperCase() : '';
+                                const pMatNumB = pRow[1] ? pRow[1].toString().trim().toUpperCase() : '';
+                                const pMatNumA = pRow[0] ? pRow[0].toString().trim().toUpperCase() : '';
+                                
+                                const cleanDyn = pMatNumDyn.replace(/^0+/, '') || pMatNumDyn;
+                                const cleanB = pMatNumB.replace(/^0+/, '') || pMatNumB;
+                                const cleanA = pMatNumA.replace(/^0+/, '') || pMatNumA;
+                                
+                                // Deteksi matching yang paling presisi
+                                if ((cleanDyn !== '' && cleanDyn === searchMatClean) || 
+                                    (cleanB !== '' && cleanB === searchMatClean) || 
+                                    (cleanA !== '' && cleanA === searchMatClean) || 
+                                    (pMatNumDyn !== '' && pMatNumDyn === searchMatNum)) {
+                                    
+                                    // Ambil nilai Price berdasarkan index dinamis yang ditemukan
+                                    let raw = pRow[priceIdx] ? pRow[priceIdx].toString().trim() : '';
+                                    
+                                    // Fallback ke Index 9 (Col J) manual jika kolom gagal dideteksi secara dinamis
+                                    if (raw === '' && pRow[9]) {
+                                        raw = pRow[9].toString().trim();
+                                    }
+                                    
+                                    if (raw !== '') foundPrice = raw;
+                                    break;
+                                }
+                            }
+                        }
+                        document.getElementById('price').value = foundPrice;
+                        calculateValue(); // Jalankan kalkulasi value saat price ditarik
+
                         // AMBIL DAN TATA DROP DOWN PILIHAN BIN BERDASARKAN MATERIAL YANG DIPILIH
                         updateBinLocationOptions(actualMatNum);
 
@@ -1014,6 +1119,7 @@
                         document.getElementById('modelUnit').value = '';
                         document.getElementById('kategoriAlarm').value = '';
                         document.getElementById('remarkMaster').value = '';
+                        document.getElementById('price').value = '';
                         resetBinLocationUI();
                     }
                 }
@@ -1389,6 +1495,7 @@
                 binLocation: dataObj.binLocation,
                 fotoBase64: dataObj.fotoBase64, 
                 qty: dataObj.qty,
+                price: dataObj.price,
                 kelayakan: dataObj.kelayakan,
                 keterangan: dataObj.keterangan,
                 subtitusiUnit: dataObj.subtitusiUnit,
