@@ -142,11 +142,19 @@
                             <i class="fas fa-sync-alt mr-1"></i> Sync
                         </button>
                     </div>
-                    <input type="text" id="plantSearchInput" class="input-field mb-2 bg-white border-indigo-200 text-sm font-medium" placeholder="Cari Material / MPN di Antrean...">
+
+                    <!-- KOLOM PENCARIAN ANTREAN (KHUSUS PLANT) -->
+                    <div class="relative mb-3 mt-1">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-indigo-400 text-sm"></i>
+                        </div>
+                        <input type="text" id="searchPending" class="input-field !mt-0 pl-10 border-indigo-200 bg-white focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 font-medium" placeholder="Cari 6 angka Material atau MPN...">
+                    </div>
+
                     <select id="pendingMaterialSelect" class="input-field bg-white border-indigo-200 text-indigo-900 font-medium">
                         <option value="">-- Memuat antrean... --</option>
                     </select>
-                    <p class="text-xs text-indigo-600 mt-2">*Pilih material untuk memuat detail identitas secara otomatis</p>
+                    <p class="text-xs text-indigo-600 mt-2">*Ketik Material/MPN untuk memfilter, lalu pilih dari daftar</p>
                 </div>
 
                 <!-- PENCARIAN KHUSUS LOGISTIK -->
@@ -204,6 +212,12 @@
                         <label class="block text-sm font-semibold text-slate-700">Model Unit</label>
                         <input type="text" id="modelUnit" name="modelUnit" class="input-field" readonly placeholder="Auto">
                     </div>
+                </div>
+
+                <!-- KOLOM BARU: Pengeluaran Terakhir -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-slate-700">Pengeluaran Terakhir <span class="text-xs font-normal text-slate-400 ml-1">(Auto)</span></label>
+                    <input type="text" id="pengeluaranTerakhir" name="pengeluaranTerakhir" class="input-field bg-slate-100 text-slate-500 cursor-not-allowed" readonly placeholder="Menunggu sinkronisasi...">
                 </div>
 
                 <div class="mb-4">
@@ -438,6 +452,12 @@
         // PENYARING LOKAL: Menyimpan nomor material yang sudah disubmit dalam sesi ini agar langsung tersembunyi
         const locallySubmittedMaterials = new Set();
         
+        // Memori khusus Logistik agar Pop-Up duplikasi muncul instan walau CSV Google belum update
+        window.sessionSubmittedData = {};
+
+        // Variabel penyimpan data antrean global untuk Plant
+        window.allPendingData = [];
+
         // Variabel penentu mode pengiriman Logistik ('baru' atau 'revisi')
         window.submitMode = 'baru';
 
@@ -594,7 +614,8 @@
             appHeader.classList.add('hidden');
             loginScreen.classList.remove('hidden');
             document.getElementById('loginPassword').value = ''; // Hapus password
-            form.reset();
+            document.getElementById('searchPending').value = ''; // Reset Search Plant
+            formObj.reset();
             document.getElementById('statusIndicator').classList.add('hidden');
             resetBinLocationUI();
         });
@@ -682,6 +703,7 @@
                 // Sembunyikan pencarian manual logistik, tampilkan Dropdown Plant
                 document.getElementById('logistikSearchGroup').classList.add('hidden');
                 document.getElementById('plantDropdownGroup').classList.remove('hidden');
+                document.getElementById('searchPending').value = ''; // Reset Search Plant
                 
                 inputMatNumber.removeAttribute('required'); // materialNumber diisi via dropdown
                 selectPending.setAttribute('required', 'true');
@@ -727,6 +749,8 @@
         // FUNGSI PENGAMBILAN DATA PENDING (ANTREAN LOGISTIK UNTUK PLANT)
         async function fetchPendingMaterials() {
             const select = document.getElementById('pendingMaterialSelect');
+            const searchInput = document.getElementById('searchPending');
+            
             select.innerHTML = '<option value="">-- Mengambil antrean inspeksi... --</option>';
             
             try {
@@ -739,8 +763,10 @@
                 for (let i = 1; i < data.length; i++) {
                     const row = data[i];
                     // Col C: Material Number (Indeks 2), Col I: Foto Fisik (Indeks 8)
-                    const materialNumber = row[2] ? row[2].trim() : '';
-                    const fotoFisik = row[8] ? row[8].trim() : '';
+                    let materialNumber = row[2] ? row[2].toString().trim() : '';
+                    if (materialNumber.startsWith("'")) materialNumber = materialNumber.substring(1); // Pembersih petik
+                    
+                    const fotoFisik = row[8] ? row[8].toString().trim() : '';
                     
                     // Logika: Jika Material Number terisi DAN Foto Fisik masih blank DAN belum disubmit di sesi ini -> Masuk Antrean
                     if (materialNumber !== '' && fotoFisik === '' && !locallySubmittedMaterials.has(materialNumber)) {
@@ -771,50 +797,54 @@
 
         function processPendingData(result) {
             const select = document.getElementById('pendingMaterialSelect');
+            const searchInput = document.getElementById('searchPending');
+            
             if (result.status === 'success' && result.data && result.data.length > 0) {
-                select.innerHTML = '<option value="">-- Pilih Material yang Belum Diinspeksi --</option>';
+                window.allPendingData = result.data;
                 window.pendingDataMap = {}; 
-                window.originalPendingList = result.data; // Menyimpan data asli antrean untuk fitur pencarian
                 
                 result.data.forEach(item => {
                     window.pendingDataMap[item.materialNumber] = item;
-                    const option = document.createElement('option');
-                    option.value = item.materialNumber;
-                    option.textContent = `${item.materialNumber} - ${item.description.substring(0, 40)}`;
-                    select.appendChild(option);
                 });
+                
+                // Render ulang dropdown berdasarkan nilai pencarian saat ini
+                renderPendingSelect(searchInput.value);
             } else {
+                window.allPendingData = [];
+                window.pendingDataMap = {};
                 select.innerHTML = '<option value="">-- Tidak ada antrean inspeksi --</option>';
-                window.originalPendingList = [];
             }
         }
 
-        // Fitur Pencarian Cepat Antrean untuk Tim Plant (Mencari Material / MPN)
-        document.getElementById('plantSearchInput').addEventListener('input', function() {
-            const val = this.value.trim().toUpperCase();
+        // FUNGSI RENDER DROPDOWN FILTER ANTREAN UNTUK PLANT
+        function renderPendingSelect(filterTerm) {
             const select = document.getElementById('pendingMaterialSelect');
-
-            if (!window.originalPendingList) return;
-
             select.innerHTML = '<option value="">-- Pilih Material yang Belum Diinspeksi --</option>';
-
-            // Saring list antrean berdasarkan kecocokan (Material Number atau MPN)
-            const filtered = window.originalPendingList.filter(item => {
-                const matNum = item.materialNumber ? item.materialNumber.toUpperCase() : '';
-                const mpn = item.mpn ? item.mpn.toUpperCase() : '';
-                return matNum.includes(val) || mpn.includes(val);
-            });
-
-            if (filtered.length > 0) {
-                filtered.forEach(item => {
+            const term = filterTerm.trim().toUpperCase();
+            
+            window.allPendingData.forEach(item => {
+                const matNum = item.materialNumber.toUpperCase();
+                const mpn = (item.mpn || '').toUpperCase();
+                
+                // Filter logika: Munculkan jika cocok dengan matNum ATAU mpn
+                if (term === '' || matNum.includes(term) || mpn.includes(term)) {
                     const option = document.createElement('option');
                     option.value = item.materialNumber;
-                    option.textContent = `${item.materialNumber} - ${item.description.substring(0, 40)}`;
+                    let textContent = `${item.materialNumber} - ${item.description.substring(0, 40)}`;
+                    if (item.mpn) textContent += ` (MPN: ${item.mpn})`;
+                    option.textContent = textContent;
                     select.appendChild(option);
-                });
-            } else {
-                select.innerHTML = '<option value="">-- Pencarian tidak ditemukan --</option>';
+                }
+            });
+            
+            if(select.options.length === 1 && term !== '') {
+                select.innerHTML = '<option value="">-- Tidak ditemukan material di antrean --</option>';
             }
+        }
+
+        // EVENT LISTENER UNTUK PENCARIAN (FILTER) DI ANTREAN PLANT
+        document.getElementById('searchPending').addEventListener('input', function() {
+            renderPendingSelect(this.value);
         });
 
         // Handle Pemilihan dari Dropdown Plant
@@ -833,10 +863,35 @@
                 document.getElementById('kategoriAlarm').value = data.kategoriAlarm || '';
                 document.getElementById('remarkMaster').value = data.remarkMaster || '';
                 document.getElementById('component').value = data.component || '';
+
+                // Fetch Pengeluaran Terakhir dari Master Data secara background untuk Tim Teknis (Plant)
+                document.getElementById('pengeluaranTerakhir').value = 'Memuat...';
+                (async () => {
+                    try {
+                        if (!cachedMasterData) {
+                            cachedMasterData = await loadCSV(CSV_MASTER_DATA_URL);
+                        }
+                        let pTerakhir = '';
+                        const searchMat = data.materialNumber.toUpperCase();
+                        for (let i = 0; i < cachedMasterData.length; i++) {
+                            const rowMat = cachedMasterData[i][0] ? cachedMasterData[i][0].toString().trim().toUpperCase() : '';
+                            if (rowMat === searchMat) {
+                                pTerakhir = cachedMasterData[i][6] ? cachedMasterData[i][6].toString().trim() : ''; // Ambil dari indeks ke-6 Master Data
+                                break;
+                            }
+                        }
+                        document.getElementById('pengeluaranTerakhir').value = pTerakhir;
+                    } catch (e) {
+                        document.getElementById('pengeluaranTerakhir').value = '';
+                    }
+                })();
                 
                 // Pada view Plant, isi BIN Location ke manual input (karena readonly)
-                document.getElementById('binLocation').value = data.binLocation || '';
-                document.getElementById('binLocationInput').value = data.binLocation || '';
+                let plantBinVal = data.binLocation || '';
+                if(plantBinVal.startsWith("'")) plantBinVal = plantBinVal.substring(1);
+                
+                document.getElementById('binLocation').value = plantBinVal;
+                document.getElementById('binLocationInput').value = plantBinVal;
                 
                 document.getElementById('qty').value = data.qty || '';
                 document.getElementById('price').value = data.price || '';
@@ -874,6 +929,7 @@
                 document.getElementById('mpn').value = '';
                 document.getElementById('brand').value = '';
                 document.getElementById('modelUnit').value = '';
+                document.getElementById('pengeluaranTerakhir').value = '';
                 document.getElementById('kategoriAlarm').value = '';
                 document.getElementById('remarkMaster').value = '';
                 document.getElementById('component').value = '';
@@ -1042,6 +1098,7 @@
                         document.getElementById('mpn').value = foundRowArray[2] ? foundRowArray[2].trim() : '';
                         document.getElementById('brand').value = foundRowArray[4] ? foundRowArray[4].trim() : '';
                         document.getElementById('modelUnit').value = foundRowArray[5] ? foundRowArray[5].trim() : '';
+                        document.getElementById('pengeluaranTerakhir').value = foundRowArray[6] ? foundRowArray[6].trim() : ''; // Ambil Info Pengeluaran Terakhir dari indeks ke-6 Master Data
                         
                         const statusValue = foundRowArray[3] ? foundRowArray[3].trim() : '';
                         document.getElementById('kategoriAlarm').value = statusValue; 
@@ -1148,6 +1205,7 @@
                         document.getElementById('mpn').value = '';
                         document.getElementById('brand').value = '';
                         document.getElementById('modelUnit').value = '';
+                        document.getElementById('pengeluaranTerakhir').value = '';
                         document.getElementById('kategoriAlarm').value = '';
                         document.getElementById('remarkMaster').value = '';
                         document.getElementById('price').value = '';
@@ -1168,43 +1226,57 @@
         async function checkDuplicateInInspections(matNum) {
             if (currentUserRole !== 'Logistik') return; // Hanya berjalan pada panel Logistik
             
-            try {
-                // Tarik data antrean real-time
-                const cacheBusterUrl = CSV_ANTREAN_URL + '&t=' + new Date().getTime();
-                const data = await loadCSV(cacheBusterUrl);
-                
-                let duplicateRow = null;
-                // Scan dari baris paling bawah untuk mengambil riwayat inputan terakhir
-                for (let i = data.length - 1; i >= 1; i--) {
-                    const row = data[i];
-                    // Col C (Indeks 2): Material Number
-                    const rowMatNum = row[2] ? row[2].toString().trim().toUpperCase() : '';
-                    if (rowMatNum === matNum) {
-                        duplicateRow = {
-                            rowIndex: i + 1,
-                            qty: row[10] ? row[10].toString().trim() : '0',      // Col K (Qty)
-                            bin: row[21] ? row[21].toString().trim() : '',       // Col V (BIN Asal)
-                            component: row[7] ? row[7].toString().trim() : ''    // Col H (Component)
-                        };
-                        break;
-                    }
-                }
+            const searchMatNum = matNum.toString().trim().toUpperCase();
+            let duplicateRow = null;
 
-                if (duplicateRow) {
-                    // Isi data rincian di modal
-                    document.getElementById('dupMaterialCode').textContent = matNum;
-                    document.getElementById('dupQty').textContent = duplicateRow.qty;
-                    document.getElementById('dupBin').textContent = duplicateRow.bin || 'Tidak ada';
-                    document.getElementById('dupComponent').textContent = duplicateRow.component || 'Tidak ada';
+            // 1. Cek Cepat di Memori Sesi (Jika material baru saja disubmit beberapa saat lalu)
+            if (window.sessionSubmittedData && window.sessionSubmittedData[searchMatNum]) {
+                duplicateRow = window.sessionSubmittedData[searchMatNum];
+            } else {
+                // 2. Cek di Spreadsheet (CSV) untuk material yang disubmit di sesi/hari sebelumnya
+                try {
+                    // Tarik data antrean real-time
+                    const cacheBusterUrl = CSV_ANTREAN_URL + '&t=' + new Date().getTime();
+                    const data = await loadCSV(cacheBusterUrl);
                     
-                    // Simpan objek data sementara di memori window
-                    window.currentDuplicateData = duplicateRow;
-                    
-                    // Munculkan Modal Duplikasi
-                    document.getElementById('duplicateModal').classList.remove('hidden');
+                    // Scan dari baris paling bawah untuk mengambil riwayat inputan terakhir
+                    for (let i = data.length - 1; i >= 1; i--) {
+                        const row = data[i];
+                        // Col C (Indeks 2): Material Number
+                        let rowMatNum = row[2] ? row[2].toString().trim().toUpperCase() : '';
+                        
+                        // BUKA KUNCIAN PETIK: Membersihkan petik (') yang ditambahkan di backend untuk cegah teks terpotong
+                        if (rowMatNum.startsWith("'")) rowMatNum = rowMatNum.substring(1);
+
+                        if (rowMatNum === searchMatNum) {
+                            let binVal = row[21] ? row[21].toString().trim() : '';
+                            if (binVal.startsWith("'")) binVal = binVal.substring(1);
+                            
+                            duplicateRow = {
+                                qty: row[10] ? row[10].toString().trim() : '0',      // Col K (Qty)
+                                bin: binVal,                                         // Col V (BIN Asal)
+                                component: row[7] ? row[7].toString().trim() : ''    // Col H (Component)
+                            };
+                            break;
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Gagal memproses validasi duplikasi:", err);
                 }
-            } catch (err) {
-                console.warn("Gagal memproses validasi duplikasi:", err);
+            }
+
+            if (duplicateRow) {
+                // Isi data rincian di modal
+                document.getElementById('dupMaterialCode').textContent = searchMatNum;
+                document.getElementById('dupQty').textContent = duplicateRow.qty;
+                document.getElementById('dupBin').textContent = duplicateRow.bin || 'Tidak ada';
+                document.getElementById('dupComponent').textContent = duplicateRow.component || 'Tidak ada';
+                
+                // Simpan objek data sementara di memori window
+                window.currentDuplicateData = duplicateRow;
+                
+                // Munculkan Modal Duplikasi
+                document.getElementById('duplicateModal').classList.remove('hidden');
             }
         }
 
@@ -1253,6 +1325,7 @@
                 document.getElementById('qty').value = window.currentDuplicateData.qty;
                 document.getElementById('component').value = window.currentDuplicateData.component;
                 fillBinLocationInForm(window.currentDuplicateData.bin);
+                calculateValue(); // update value jika qty berubah
                 
                 // Tampilkan banner indikator mode revisi
                 document.getElementById('revisiModeBadge').classList.remove('hidden');
@@ -1286,6 +1359,7 @@
             document.getElementById('revisiModeBadge').classList.add('hidden');
             document.getElementById('qty').value = '';
             document.getElementById('component').value = '';
+            document.getElementById('totalValue').value = '';
             resetBinLocationUI();
             showToast("Mode revisi dibatalkan. Kembali ke input baru.", "info");
         });
@@ -1522,6 +1596,7 @@
                 description: dataObj.description,
                 brand: dataObj.brand,
                 modelUnit: dataObj.modelUnit,
+                pengeluaranTerakhir: dataObj.pengeluaranTerakhir,
                 component: dataObj.component,
                 binLocation: dataObj.binLocation,
                 fotoBase64: dataObj.fotoBase64, 
@@ -1551,6 +1626,16 @@
 
                 loadingOverlay.classList.replace('flex', 'hidden');
                 
+                // Simpan ke memori sesi Logistik agar pop-up alarm duplikasi/revisi muncul walau dicari berulang kali tanpa nunggu CSV
+                if (currentUserRole === 'Logistik' && dataObj.materialNumber) {
+                    const cleanMat = dataObj.materialNumber.toString().trim().toUpperCase();
+                    window.sessionSubmittedData[cleanMat] = {
+                        qty: dataObj.qty,
+                        bin: dataObj.binLocation,
+                        component: dataObj.component
+                    };
+                }
+
                 // Tambahkan nomor material yang baru saja disubmit ke penyaring lokal jika bukan mode revisi
                 if (dataObj.materialNumber && window.submitMode !== 'revisi') {
                     locallySubmittedMaterials.add(dataObj.materialNumber.trim());
@@ -1566,6 +1651,7 @@
 
                 // Reset form langsung agar formulir selanjutnya langsung terbuka secara instan
                 formObj.reset();
+                document.getElementById('searchPending').value = ''; // Reset Search Plant
                 document.getElementById('tanggal').valueAsDate = new Date();
                 imagePreview.classList.add('hidden');
                 uploadPlaceholder.classList.remove('hidden');
